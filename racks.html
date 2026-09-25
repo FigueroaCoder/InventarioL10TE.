@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Racks y Cajas 3D - L10 ALMACEN</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="rack3d.css">
+
+<style>
+body{ opacity:0; transition:opacity 0.3s ease; }
+body.loaded{ opacity:1; }
+.rack-form{
+display:grid;
+grid-template-columns:1fr 1fr 1fr auto;
+gap:12px;
+align-items:end;
+}
+.rack-form button{ margin-top:8px; height:44px; }
+
+.stat-chips{ display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 4px; }
+.stat-chip{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:7px 14px 7px 12px;
+  border-radius:99px;
+  background:var(--panel);
+  border:1px solid var(--panel-line);
+  color:#c4c9d4;
+  font-size:12.5px;
+  line-height:1;
+}
+.stat-chip b{ font-family:var(--font-mono); font-size:15px; font-weight:700; color:#fff; }
+.stat-chip em{ font-style:normal; letter-spacing:.2px; }
+.stat-chip .dot{ width:9px; height:9px; border-radius:50%; display:inline-block; flex:0 0 auto; }
+.dot-cajas{ background:var(--accent); box-shadow:0 0 8px var(--accent); }
+.dot-area{ background:#38bdf8; box-shadow:0 0 8px #38bdf8; }
+.dot-tool{ background:var(--amber); box-shadow:0 0 8px var(--amber); }
+</style>
+
+</head>
+
+<body>
+
+<div class="sidebar">
+<h2>L10 ALMACEN<span class="tag">Warehouse System</span></h2>
+<nav>
+<a href="index.html"><span class="num">01</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Inicio</a>
+<a href="entrada.html"><span class="num">02</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 20h16"/></svg>Registrar Entrada</a>
+<a href="salida.html"><span class="num">03</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="M7 14l5-5 5 5"/><path d="M4 4h16"/></svg>Registrar Salida</a>
+<a href="stock.html"><span class="num">04</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>Inventario</a>
+<a href="racks.html"><span class="num">05</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Racks y Cajas</a>
+<div class="nav-group" id="navMov"><a href="movimientos.html" class="nav-parent" id="navMovToggle" aria-expanded="false"><span class="num">06</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4M7 4l-3 3M7 4l3 3"/><path d="M17 8v12M17 20l3-3M17 20l-3-3"/></svg>Movimientos<svg class="nav-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></a><div class="nav-submenu" id="navMovSub"><a href="movimientos.html#panelMaterial" class="nav-sub" data-panel="panelMaterial"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13M14 4l4 4-4 4"/><path d="M20 16H7M10 12l-4 4 4 4"/></svg><span>Material entre cajas</span></a><a href="movimientos.html#panelCajas" class="nav-sub" data-panel="panelCajas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg><span>Mover cajas / slots</span></a><a href="movimientos.html#panelTool" class="nav-sub" data-panel="panelTool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.1L3 17.7V21h3.3l6.3-6.3a4 4 0 0 0 5.1-5.4l-2.5 2.5-2.3-.6-.6-2.3z"/></svg><span>Material a Tool Crib</span></a><a href="movimientos.html#panelScrap" class="nav-sub" data-panel="panelScrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></svg><span>Material a Scrap</span></a></div></div>
+<a href="categorias.html"><span class="num">07</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41L11 3.83A2 2 0 0 0 9.59 3.24L4 3a1 1 0 0 0-1 1l.24 5.59a2 2 0 0 0 .58 1.41l9.58 9.58a2 2 0 0 0 2.83 0l4.36-4.36a2 2 0 0 0 0-2.81z"/><circle cx="7.5" cy="7.5" r="1.2"/></svg>Categorías</a>
+<a href="historial.html"><span class="num">08</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Historial</a>
+</nav>
+<div class="sidebar-foot">L10 &copy; 2026<br>SISTEMA DE INVENTARIO</div>
+</div>
+
+<div class="user-bar">
+<span id="usuarioActivo">Cargando...</span>
+<button onclick="logout()">Cerrar sesión</button>
+</div>
+
+<div class="main">
+
+<!-- ================= 1. ALMACÉN 3D ================= -->
+<div class="card">
+
+<div class="top-bar">
+<div>
+<span class="eyebrow">Distribución en vivo</span>
+<h2>Modelo de Almacén</h2>
+<div id="contadorCajas3D" class="stat-chips">
+<span class="stat-chip"><i class="dot dot-cajas"></i><b>0</b><em>cajas</em></span>
+<span class="stat-chip"><i class="dot dot-area"></i><b>0</b><em>materiales distintos en el área</em></span>
+<span class="stat-chip"><i class="dot dot-tool"></i><b>0</b><em>materiales distintos en Tool Crib</em></span>
+</div>
+</div>
+</div>
+
+<div id="rack3d-host">
+  <div class="r3d-canvas"></div>
+
+  <div class="r3d-topbar">
+
+    <div class="r3d-hud">
+      <h3 id="r3d-title">ALMACEN L10 TE</h3>
+      <p id="r3d-sub">Pasa el puntero para destacar y haz clic para explorar.</p>
+      <div id="r3d-path" class="breadcrumb">GLOBAL</div>
+    </div>
+
+    <div class="r3d-controls">
+      <div class="r3d-search-container">
+        <input type="text" id="r3d-search" class="r3d-search-input" placeholder="Buscar componente, PN o caja..." autocomplete="off">
+        <button id="r3d-clear" class="r3d-clear" onclick="Rack3D.clearSearch()" title="Borrar búsqueda">✕</button>
+        <div id="r3d-suggestions" class="r3d-suggestions"></div>
+      </div>
+      <div class="r3d-btn-row">
+        <button id="r3d-back" class="r3d-btn" disabled onclick="Rack3D.goBack()">↰ Retroceder</button>
+        <button class="r3d-btn" onclick="Rack3D.resetToGlobal()">Vista general</button>
+        <button id="r3d-fs" class="r3d-btn r3d-btn-fs" onclick="toggleFullscreen3D()">⛶ Ampliar</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="r3d-legend">
+    <span><i style="background:#f87171"></i> Caja vacía</span>
+    <span><i style="background:#38bdf8"></i> Poco contenido</span>
+    <span><i style="background:#fb923c"></i> Contenido medio</span>
+    <span><i style="background:#4ade80"></i> Caja llena</span>
+  </div>
+
+  <div class="r3d-overlay"></div>
+</div>
+
+<p style="color:var(--ink-soft); font-size:13px; margin-top:12px;">
+Clic en un rack → nivel → slot para desplegar sus cajas. Dentro de cada caja puedes
+agregar (+) o retirar (−) componentes, cambiar su status (color) y su tamaño; cada movimiento se guarda
+y aparece de inmediato en Inventario, Salida e Historial.
+</p>
+
+</div>
+
+<!-- ================= 2. RACKS ================= -->
+<div class="card">
+
+<div class="top-bar">
+<div>
+<span class="eyebrow">Estructura física</span>
+<h2>Racks <span id="contadorRacks" style="font-family:var(--font-mono);font-size:16px;color:var(--ink-muted);">0</span></h2>
+</div>
+<div style="display:flex; gap:10px;">
+<button id="btnExport" onclick="printLabels()">🏷 Imprimir etiquetas</button>
+</div>
+</div>
+
+<div class="rack-form">
+<div>
+<label>Nombre del rack</label>
+<input id="rackNombre" placeholder="Ej. D" maxlength="3">
+</div>
+<div>
+<label>Niveles</label>
+<input id="rackNiveles" type="number" min="1" placeholder="Ej. 3">
+</div>
+<div>
+<label>Slots por nivel</label>
+<input id="rackSlots" type="number" min="1" placeholder="Ej. 3">
+</div>
+<button onclick="crearRack()">+ Agregar rack</button>
+</div>
+
+<div class="table-wrap">
+<table id="tablaRacksTable">
+<thead>
+<tr>
+<th>Rack</th>
+<th>Niveles</th>
+<th>Slots/nivel</th>
+<th>Total cajas</th>
+<th>Con contenido</th>
+<th>Status</th>
+<th>Acciones</th>
+</tr>
+</thead>
+<tbody id="tablaRacks"></tbody>
+</table>
+</div>
+
+</div>
+
+</div>
+
+<!-- Librerías 3D -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script src="rack3d.js"></script>
+
+<script type="module" src="auth-global.js"></script>
+<script type="module" src="app.js"></script>
+
+<script>
+function aplicarFullscreen(activo){
+  const host = document.getElementById("rack3d-host");
+  const btn = document.getElementById("r3d-fs");
+  host.classList.toggle("fullscreen", activo);
+  document.body.classList.toggle("r3d-fs-abierto", activo);
+  btn.innerText = activo ? "↩ Vista previa" : "⛶ Ampliar";
+  setTimeout(() => { if(window.Rack3D) window.Rack3D.resize(); }, 60);
+}
+
+function toggleFullscreen3D(){
+  const host = document.getElementById("rack3d-host");
+  aplicarFullscreen(!host.classList.contains("fullscreen"));
+}
+
+document.addEventListener("keydown", (e) => {
+  if(e.key === "Escape"){
+    const host = document.getElementById("rack3d-host");
+    if(host.classList.contains("fullscreen")) aplicarFullscreen(false);
+  }
+});
+
+document.addEventListener("DOMContentLoaded", async () => {
+
+  // arrancar el motor 3D antes de que lleguen los datos
+  if(window.Rack3D) window.Rack3D.init("rack3d-host");
+
+  let intentos = 0;
+
+  while (!window.currentUser && intentos < 20) {
+    await new Promise(r => setTimeout(r, 100));
+    intentos++;
+  }
+
+  intentos = 0;
+  while (typeof window.currentRole === "undefined" && intentos < 20) {
+    await new Promise(r => setTimeout(r, 100));
+    intentos++;
+  }
+
+  // Solo el admin puede agregar racks
+  if (window.currentRole !== "admin") {
+    const rackForm = document.querySelector(".rack-form");
+    if (rackForm) rackForm.style.display = "none";
+  }
+
+  const esperar = setInterval(() => {
+    if(typeof window.renderRacksPage === "function"){
+      clearInterval(esperar);
+      window.renderRacksPage().then(() => {
+        const params = new URLSearchParams(window.location.search);
+        const buscar = params.get("buscar");
+        if(buscar && window.Rack3D && typeof window.Rack3D.buscar === "function"){
+          setTimeout(() => window.Rack3D.buscar(buscar), 300);
+        }
+      });
+    }
+  }, 150);
+
+  document.body.classList.add("loaded");
+
+  document.querySelectorAll(".sidebar a").forEach(a => {
+    if (a.getAttribute("href") === location.pathname.split("/").pop()) {
+      a.classList.add("active");
+    }
+  });
+
+});
+</script>
+
+<script src="nav.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Categorías de material - L10 ALMACEN</title>
+<link rel="stylesheet" href="style.css">
+
+<style>
+body{ opacity:0; transition:opacity 0.3s ease; }
+body.loaded{ opacity:1; }
+
+.filtros-row{
+  display:grid;
+  grid-template-columns:2fr 1.4fr;
+  gap:12px;
+  align-items:end;
+}
+@media (max-width:900px){ .filtros-row{ grid-template-columns:1fr; } }
+
+.cat-pill{
+  display:inline-block;
+  font-size:11px;
+  padding:2px 8px;
+  border-radius:999px;
+  background:rgba(250,204,21,0.15);
+  border:1px solid #eab308;
+  color:#854d0e;
+  white-space:nowrap;
+}
+.cat-pill.vacia{
+  background:var(--bg-app-2);
+  border:1px solid var(--line);
+  color:var(--ink-muted);
+}
+
+.acciones-cell{ display:flex; gap:6px; flex-wrap:wrap; }
+.acciones-cell button{
+  font-size:11.5px;
+  padding:5px 8px;
+  white-space:nowrap;
+}
+.btn-ver3d{ background:#0ea5e9; }
+.btn-tool{ background:#38bdf8; }
+.btn-scrap{ background:#ef4444; }
+
+select.cat-select-inline{
+  font-size:12px;
+  padding:4px 6px;
+  border-radius:6px;
+  border:1.5px solid var(--line);
+  background:var(--white);
+  color:var(--ink);
+  max-width:220px;
+}
+
+#resumenCategorias{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-bottom:16px;
+}
+.resumen-chip{
+  font-size:12px;
+  padding:6px 12px;
+  border-radius:10px;
+  background:var(--bg-app-2);
+  border:1.5px solid var(--line);
+  cursor:pointer;
+  color:var(--ink);
+}
+.resumen-chip.activo{
+  border-color:var(--accent);
+  background:#fff3ec;
+  font-weight:700;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="sidebar">
+
+<h2>L10 ALMACEN
+<span class="tag">Warehouse System</span>
+</h2>
+
+<nav>
+<a href="index.html"><span class="num">01</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Inicio</a>
+<a href="entrada.html"><span class="num">02</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 20h16"/></svg>Registrar Entrada</a>
+<a href="salida.html"><span class="num">03</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="M7 14l5-5 5 5"/><path d="M4 4h16"/></svg>Registrar Salida</a>
+<a href="stock.html"><span class="num">04</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>Inventario</a>
+<a href="racks.html"><span class="num">05</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Racks y Cajas</a>
+<div class="nav-group" id="navMov"><a href="movimientos.html" class="nav-parent" id="navMovToggle" aria-expanded="false"><span class="num">06</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4M7 4l-3 3M7 4l3 3"/><path d="M17 8v12M17 20l3-3M17 20l-3-3"/></svg>Movimientos<svg class="nav-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></a><div class="nav-submenu" id="navMovSub"><a href="movimientos.html#panelMaterial" class="nav-sub" data-panel="panelMaterial"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13M14 4l4 4-4 4"/><path d="M20 16H7M10 12l-4 4 4 4"/></svg><span>Material entre cajas</span></a><a href="movimientos.html#panelCajas" class="nav-sub" data-panel="panelCajas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg><span>Mover cajas / slots</span></a><a href="movimientos.html#panelTool" class="nav-sub" data-panel="panelTool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.1L3 17.7V21h3.3l6.3-6.3a4 4 0 0 0 5.1-5.4l-2.5 2.5-2.3-.6-.6-2.3z"/></svg><span>Material a Tool Crib</span></a><a href="movimientos.html#panelScrap" class="nav-sub" data-panel="panelScrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></svg><span>Material a Scrap</span></a></div></div>
+<a href="categorias.html"><span class="num">07</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41L11 3.83A2 2 0 0 0 9.59 3.24L4 3a1 1 0 0 0-1 1l.24 5.59a2 2 0 0 0 .58 1.41l9.58 9.58a2 2 0 0 0 2.83 0l4.36-4.36a2 2 0 0 0 0-2.81z"/><circle cx="7.5" cy="7.5" r="1.2"/></svg>Categorías</a>
+<a href="historial.html"><span class="num">08</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Historial</a>
+</nav>
+
+<div class="sidebar-foot">L10 &copy; 2026<br>SISTEMA DE INVENTARIO</div>
+</div>
+
+<div class="user-bar">
+<span id="usuarioActivo">Cargando...</span>
+<button onclick="logout()">Cerrar sesión</button>
+</div>
+
+<div class="main">
+
+<div class="card">
+
+<span class="eyebrow">Clasificación</span>
+<h2>Categoría de materiales</h2>
+<p style="font-size:12.5px;color:var(--ink-muted);margin-top:-4px;">
+Busca cualquier material y clasifícalo, o filtra por categoría para ver todo lo que
+tienes en esa condición. Desde aquí puedes mandarlo a Tool Crib, mandarlo a Scrap o
+verlo resaltado en el modelo 3D.
+</p>
+
+<div id="resumenCategorias"></div>
+
+<div class="filtros-row">
+<div>
+<label>Buscador inteligente</label>
+<input class="buscador" id="catBuscar" placeholder="Nombre, PN, caja o categoría..." autocomplete="off" oninput="filtrarCategorias()">
+</div>
+<div>
+<label>Filtrar por categoría</label>
+<select id="catFiltro" onchange="filtrarCategorias()">
+<option value="">Todas las categorías</option>
+<option value="__sin__">Sin categoría</option>
+</select>
+</div>
+</div>
+
+<div style="margin-top:10px;">
+<button id="btnVer3dCategoria" style="display:none;" onclick="verCategoriaEn3D()">Ver esta categoría en el modelo 3D</button>
+</div>
+
+<div class="table-wrap" style="margin-top:16px;">
+<table>
+<thead>
+<tr>
+<th>Material</th>
+<th>PN</th>
+<th>Categoría</th>
+<th>Caja</th>
+<th>Cantidad</th>
+<th>Acciones</th>
+</tr>
+</thead>
+<tbody id="tablaCategorias"></tbody>
+</table>
+</div>
+
+</div>
+
+</div>
+
+<script type="module" src="auth-global.js"></script>
+<script type="module" src="app.js"></script>
+
+<script>
+
+let categoriasCache = [];
+
+function llenarSelectsCategorias(){
+  const filtro = document.getElementById("catFiltro");
+  (window.CATEGORIAS_MATERIAL || []).forEach(c=>{
+    filtro.innerHTML += `<option value="${c}">${c}</option>`;
+  });
+
+  const resumen = document.getElementById("resumenCategorias");
+  resumen.innerHTML = `<div class="resumen-chip activo" data-cat="" onclick="seleccionarChip('')">Todas</div>` +
+    `<div class="resumen-chip" data-cat="__sin__" onclick="seleccionarChip('__sin__')">Sin categoría</div>` +
+    (window.CATEGORIAS_MATERIAL || []).map(c =>
+      `<div class="resumen-chip" data-cat="${c}" onclick="seleccionarChip('${c.replace(/'/g,"\\'")}')">${c}</div>`
+    ).join("");
+}
+
+function seleccionarChip(cat){
+  document.getElementById("catFiltro").value = cat;
+  document.querySelectorAll(".resumen-chip").forEach(el=>{
+    el.classList.toggle("activo", el.dataset.cat === cat);
+  });
+  filtrarCategorias();
+}
+
+async function filtrarCategorias(){
+  const query = document.getElementById("catBuscar").value;
+  const categoria = document.getElementById("catFiltro").value;
+
+  document.querySelectorAll(".resumen-chip").forEach(el=>{
+    el.classList.toggle("activo", el.dataset.cat === categoria);
+  });
+
+  const btnVer3d = document.getElementById("btnVer3dCategoria");
+  btnVer3d.style.display = (categoria && categoria !== "__sin__") ? "inline-block" : "none";
+
+  if(typeof window.listarOcurrenciasPorCategoria !== "function") return;
+
+  categoriasCache = await window.listarOcurrenciasPorCategoria(query, categoria);
+  renderTablaCategorias();
+}
+
+function renderTablaCategorias(){
+  const tabla = document.getElementById("tablaCategorias");
+
+  if(!categoriasCache.length){
+    tabla.innerHTML = `<tr><td colspan="6" style="color:var(--ink-soft);">Sin resultados</td></tr>`;
+    return;
+  }
+
+  tabla.innerHTML = categoriasCache.map((r, i) => {
+    const opciones = `<option value="">Sin categoría</option>` +
+      (window.CATEGORIAS_MATERIAL || []).map(c =>
+        `<option value="${c}" ${r.categoria === c ? "selected" : ""}>${c}</option>`
+      ).join("");
+
+    return `
+<tr>
+<td>${r.nombre}</td>
+<td>${(r.pn && r.pn !== "NO APLICA") ? r.pn : "—"}</td>
+<td>
+  <select class="cat-select-inline" onchange="cambiarCategoriaFila(${i}, this.value)">
+    ${opciones}
+  </select>
+</td>
+<td>${r.caja}</td>
+<td>${r.cantidad}</td>
+<td class="acciones-cell">
+  <button class="btn-tool" onclick="accionEnviarTool(${i})">→ Tool Crib</button>
+  <button class="btn-scrap" onclick="accionEnviarScrap(${i})">→ Scrap</button>
+  <button class="btn-ver3d" onclick="verMaterialEn3D(${i})">Ver en 3D</button>
+</td>
+</tr>`;
+  }).join("");
+}
+
+async function cambiarCategoriaFila(i, categoria){
+  const r = categoriasCache[i];
+  if(!r) return;
+  const ok = await window.setCategoriaMaterial(r.ubicacion, r.nombre, categoria);
+  if(ok) await filtrarCategorias();
+}
+
+async function accionEnviarTool(i){
+  const r = categoriasCache[i];
+  if(!r) return;
+
+  const cantidadTxt = prompt(`Cantidad de "${r.nombre}" a mandar a Tool Crib (disponible: ${r.cantidad}):`, String(r.cantidad));
+  if(cantidadTxt === null) return;
+  const cantidad = parseInt(cantidadTxt);
+  if(isNaN(cantidad) || cantidad <= 0){ alert("Cantidad inválida"); return; }
+
+  const conCaja = confirm("¿Quieres mandar también la caja (liberar el espacio en el rack)?\n\nAceptar = enviar también la caja.\nCancelar = conservar la caja en el rack.");
+
+  const ok = await window.enviarATooCrib(r.ubicacion, r.nombre, cantidad, "Enviado desde Categorías", !conCaja);
+  if(ok) await filtrarCategorias();
+}
+
+async function accionEnviarScrap(i){
+  const r = categoriasCache[i];
+  if(!r) return;
+
+  const cantidadTxt = prompt(`Cantidad de "${r.nombre}" a mandar a Scrap (disponible: ${r.cantidad}):`, String(r.cantidad));
+  if(cantidadTxt === null) return;
+  const cantidad = parseInt(cantidadTxt);
+  if(isNaN(cantidad) || cantidad <= 0){ alert("Cantidad inválida"); return; }
+
+  const comentarios = prompt("Comentarios (opcional):", "") || "NO APLICA";
+
+  const ok = await window.enviarAScrap("caja", r.ubicacion, r.nombre, cantidad, comentarios);
+  if(ok) await filtrarCategorias();
+}
+
+function verMaterialEn3D(i){
+  const r = categoriasCache[i];
+  if(!r) return;
+  window.location.href = `racks.html?buscar=${encodeURIComponent(r.nombre)}`;
+}
+
+function verCategoriaEn3D(){
+  const categoria = document.getElementById("catFiltro").value;
+  if(!categoria || categoria === "__sin__") return;
+  window.location.href = `racks.html?buscar=${encodeURIComponent(categoria)}`;
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+
+  const esperar = setInterval(() => {
+    if(window.CATEGORIAS_MATERIAL && typeof window.listarOcurrenciasPorCategoria === "function"){
+      clearInterval(esperar);
+      llenarSelectsCategorias();
+      filtrarCategorias();
+    }
+  }, 150);
+
+  document.body.classList.add("loaded");
+
+  document.querySelectorAll(".sidebar a").forEach(a => {
+    if (a.getAttribute("href") === location.pathname.split("/").pop()) {
+      a.classList.add("active");
+    }
+  });
+
+});
+
+</script>
+
+<script src="nav.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Movimientos - L10 ALMACEN</title>
+<link rel="stylesheet" href="style.css">
+
+<style>
+body{ opacity:0; transition:opacity 0.3s ease; }
+body.loaded{ opacity:1; }
+
+.mov-layout{ display:block; }
+
+
+.mov-panel{ display:none; }
+.mov-panel.activo{ display:block; }
+
+.mov-buscar-wrap{ position:relative; }
+.mov-resultados{
+  display:none;
+  max-height:220px;
+  overflow-y:auto;
+  border:1.5px solid var(--panel-line);
+  border-radius:var(--radius-sm);
+  background:var(--panel);
+  margin:-6px 0 14px;
+}
+.mov-resultados.visible{ display:block; }
+.mov-resultado-item{
+  padding:10px 14px;
+  font-size:13px;
+  cursor:pointer;
+  border-bottom:1px solid var(--panel-line);
+  color:#fff;
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+}
+.mov-resultado-item:last-child{ border-bottom:none; }
+.mov-resultado-item:hover{ background:var(--panel-2); }
+.mov-resultado-item b{ color:#fff; }
+.mov-resultado-item small{ color:var(--amber); font-family:var(--font-mono); white-space:nowrap; }
+
+.mov-origen-box{
+  background:var(--bg-app-2);
+  border:1.5px dashed var(--line);
+  border-radius:var(--radius-sm);
+  padding:10px 14px;
+  font-size:13px;
+  color:var(--ink-muted);
+  margin:8px 0 14px;
+}
+.mov-origen-box b{ color:var(--ink); }
+
+.dest-row{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr 1fr;
+  gap:10px;
+  align-items:end;
+}
+@media (max-width:900px){ .dest-row{ grid-template-columns:1fr 1fr; } }
+.dest-row-3{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:10px;
+  align-items:end;
+}
+@media (max-width:900px){ .dest-row-3{ grid-template-columns:1fr 1fr; } }
+
+.section-note{
+  font-size:12.5px;
+  color:var(--ink-muted);
+  margin-top:-4px;
+  margin-bottom:14px;
+}
+
+.radio-group{
+  display:flex;
+  gap:16px;
+  font-size:13px;
+  margin:8px 0 14px;
+}
+.radio-group label{ display:flex; align-items:center; gap:6px; font-weight:500; margin:0; }
+
+.subcard{
+  border:1.5px solid var(--line);
+  border-radius:var(--radius-sm);
+  padding:16px;
+  margin-top:18px;
+}
+.subcard h3{ margin-top:0; font-size:15px; }
+</style>
+
+</head>
+
+<body>
+
+<div class="sidebar">
+<h2>L10 ALMACEN<span class="tag">Warehouse System</span></h2>
+<nav>
+<a href="index.html"><span class="num">01</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Inicio</a>
+<a href="entrada.html"><span class="num">02</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 20h16"/></svg>Registrar Entrada</a>
+<a href="salida.html"><span class="num">03</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="M7 14l5-5 5 5"/><path d="M4 4h16"/></svg>Registrar Salida</a>
+<a href="stock.html"><span class="num">04</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>Inventario</a>
+<a href="racks.html"><span class="num">05</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Racks y Cajas</a>
+<div class="nav-group" id="navMov"><a href="movimientos.html" class="nav-parent" id="navMovToggle" aria-expanded="false"><span class="num">06</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4M7 4l-3 3M7 4l3 3"/><path d="M17 8v12M17 20l3-3M17 20l-3-3"/></svg>Movimientos<svg class="nav-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></a><div class="nav-submenu" id="navMovSub"><a href="movimientos.html#panelMaterial" class="nav-sub" data-panel="panelMaterial"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13M14 4l4 4-4 4"/><path d="M20 16H7M10 12l-4 4 4 4"/></svg><span>Material entre cajas</span></a><a href="movimientos.html#panelCajas" class="nav-sub" data-panel="panelCajas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg><span>Mover cajas / slots</span></a><a href="movimientos.html#panelTool" class="nav-sub" data-panel="panelTool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.1L3 17.7V21h3.3l6.3-6.3a4 4 0 0 0 5.1-5.4l-2.5 2.5-2.3-.6-.6-2.3z"/></svg><span>Material a Tool Crib</span></a><a href="movimientos.html#panelScrap" class="nav-sub" data-panel="panelScrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></svg><span>Material a Scrap</span></a></div></div>
+<a href="categorias.html"><span class="num">07</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41L11 3.83A2 2 0 0 0 9.59 3.24L4 3a1 1 0 0 0-1 1l.24 5.59a2 2 0 0 0 .58 1.41l9.58 9.58a2 2 0 0 0 2.83 0l4.36-4.36a2 2 0 0 0 0-2.81z"/><circle cx="7.5" cy="7.5" r="1.2"/></svg>Categorías</a>
+<a href="historial.html"><span class="num">08</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Historial</a>
+</nav>
+<div class="sidebar-foot">L10 &copy; 2026<br>SISTEMA DE INVENTARIO</div>
+</div>
+
+<div class="user-bar">
+<span id="usuarioActivo">Cargando...</span>
+<button onclick="logout()">Cerrar sesión</button>
+</div>
+
+<div class="main">
+<div class="card">
+
+<span class="eyebrow">Movimientos</span>
+<h2>Movimientos de almacén</h2>
+<p class="section-note">Elige el tipo de movimiento desde el menú lateral, en <b>Movimientos</b>.</p>
+
+<div class="mov-layout">
+
+<div>
+
+<!-- ================= PANEL 1: MATERIAL ENTRE CAJAS ================= -->
+<div id="panelMaterial" class="mov-panel">
+
+<h2>Material en movimiento entre cajas</h2>
+<p class="section-note">
+Busca un material por nombre, PN o número de caja, elige a qué caja lo quieres mandar
+y cuánta cantidad. Se descuenta de la caja de origen y se suma en la caja de destino;
+queda registrado en Historial.
+</p>
+
+<label>Buscar material o caja de origen</label>
+<div class="mov-buscar-wrap">
+<input class="buscador" id="mov1Buscar" placeholder="Ej. rodamiento 6202, PN-1234, A-01-01-02..." autocomplete="off" oninput="buscarMaterialMovimiento()">
+<div id="mov1Resultados" class="mov-resultados"></div>
+</div>
+
+<div id="mov1OrigenBox" class="mov-origen-box">Ningún material seleccionado todavía.</div>
+
+<label>Cantidad a mover</label>
+<input id="mov1Cantidad" type="number" min="1" placeholder="Cantidad">
+
+<label>Caja de destino</label>
+<div class="dest-row">
+<select id="mov1DestRack"><option value="">Rack</option></select>
+<select id="mov1DestNivel"><option value="">Nivel</option></select>
+<select id="mov1DestSlot"><option value="">Slot</option></select>
+<select id="mov1DestCaja"><option value="">Caja</option></select>
+</div>
+
+<label>Comentarios</label>
+<input id="mov1Comentarios" placeholder="Comentarios (opcional)">
+
+<br>
+<button onclick="ejecutarMovimientoMaterial()">Mover material</button>
+<button onclick="limpiarMovimientoMaterial()">Limpiar</button>
+
+</div>
+
+<!-- ================= PANEL 2: MOVER CAJAS ================= -->
+<div id="panelCajas" class="mov-panel">
+
+<h2>Mover cajas de rack, slot o rejilla</h2>
+<p class="section-note">
+Mueve una caja completa (con todo su contenido) de un rack, nivel o slot a otro.
+Si dejas vacío el número de caja de destino, conserva el mismo número.
+</p>
+
+<label>Caja de origen</label>
+<div class="dest-row">
+<select id="cajaOrigRack"><option value="">Rack</option></select>
+<select id="cajaOrigNivel"><option value="">Nivel</option></select>
+<select id="cajaOrigSlot"><option value="">Slot</option></select>
+<select id="cajaOrigCaja"><option value="">Caja</option></select>
+</div>
+
+<label>Destino (rack, nivel, slot)</label>
+<div class="dest-row-3">
+<select id="cajaDestRack"><option value="">Rack</option></select>
+<select id="cajaDestNivel"><option value="">Nivel</option></select>
+<select id="cajaDestSlot"><option value="">Slot</option></select>
+</div>
+
+<label>Número de caja en el destino (opcional)</label>
+<input id="cajaDestLabel" placeholder="Déjalo vacío para conservar el mismo número">
+
+<label>Comentarios</label>
+<input id="cajaMovComentarios" placeholder="Comentarios (opcional)">
+
+<br>
+<button onclick="ejecutarMovimientoCaja()">Mover caja</button>
+
+</div>
+
+<!-- ================= PANEL 3: TOOL CRIB (enviar + regresar) ================= -->
+<div id="panelTool" class="mov-panel">
+
+<h2>Material en Tool Crib</h2>
+<p class="section-note">
+Envía material desde cualquier caja hacia el Tool Crib. Decide si te llevas también la
+caja (se libera el espacio en el rack) o si prefieres conservarla. Si la caja tiene otro
+material, no se puede mandar vacía: se te ofrecerá reubicar ese material restante primero.
+</p>
+
+<label>Buscar material o caja de origen</label>
+<div class="mov-buscar-wrap">
+<input class="buscador" id="cribBuscar" placeholder="Ej. guante nitrilo, PN-1234, A-01-01-02..." autocomplete="off" oninput="buscarMaterialToolCrib()">
+<div id="cribResultados" class="mov-resultados"></div>
+</div>
+
+<div id="cribOrigenBox" class="mov-origen-box">Ningún material seleccionado todavía.</div>
+
+<label>Cantidad a enviar</label>
+<input id="cribCantidad" type="number" min="1" placeholder="Cantidad">
+
+<label>¿Qué hacer con la caja de origen?</label>
+<div class="radio-group">
+<label><input type="radio" name="cribCajaModo" value="conservar" checked> Conservar la caja en el rack</label>
+<label><input type="radio" name="cribCajaModo" value="enviar"> Enviar también la caja (liberar el espacio)</label>
+</div>
+
+<label>Comentarios</label>
+<input id="cribComentarios" placeholder="Comentarios (opcional)">
+
+<br>
+<button onclick="ejecutarEnvioToolCrib()">Enviar a Tool Crib</button>
+<button onclick="limpiarEnvioToolCrib()">Limpiar</button>
+
+<div class="table-wrap" style="margin-top:22px;">
+<table id="tablaToolCribTable">
+<thead>
+<tr>
+<th>Material</th>
+<th>PN</th>
+<th>Cantidad en Tool Crib</th>
+<th>Última caja de origen</th>
+<th>Responsable</th>
+<th>Comentarios</th>
+<th>Fecha</th>
+</tr>
+</thead>
+<tbody id="tablaToolCrib"></tbody>
+</table>
+</div>
+
+<div class="subcard">
+<h3>Regresar material del Tool Crib al almacén</h3>
+<p class="section-note">Puedes regresar todo o solo una parte, hacia una caja ya existente o una caja nueva.</p>
+
+<label>Material en Tool Crib</label>
+<select id="regresoMaterial" onchange="seleccionarMaterialRegreso()">
+<option value="">Selecciona un material...</option>
+</select>
+
+<div id="regresoDisponible" class="mov-origen-box" style="display:none;"></div>
+
+<label>Cantidad a regresar</label>
+<input id="regresoCantidad" type="number" min="1" placeholder="Cantidad">
+
+<label>Destino</label>
+<div class="radio-group">
+<label><input type="radio" name="regresoModo" value="existente" checked onchange="toggleRegresoModo()"> Caja existente</label>
+<label><input type="radio" name="regresoModo" value="nueva" onchange="toggleRegresoModo()"> Caja nueva</label>
+</div>
+
+<div id="regresoExistenteWrap">
+<label>Caja existente de destino</label>
+<div class="dest-row">
+<select id="regDestRack"><option value="">Rack</option></select>
+<select id="regDestNivel"><option value="">Nivel</option></select>
+<select id="regDestSlot"><option value="">Slot</option></select>
+<select id="regDestCaja"><option value="">Caja</option></select>
+</div>
+</div>
+
+<div id="regresoNuevaWrap" style="display:none;">
+<label>Rack, nivel y slot para la caja nueva</label>
+<div class="dest-row-3">
+<select id="regNuevaRack"><option value="">Rack</option></select>
+<select id="regNuevaNivel"><option value="">Nivel</option></select>
+<select id="regNuevaSlot"><option value="">Slot</option></select>
+</div>
+<label>Número de la caja nueva</label>
+<input id="regNuevaCaja" placeholder="Ej. 03">
+<label>Capacidad de espacio (opcional)</label>
+<input id="regNuevaCapacidad" type="number" min="0" placeholder="Unidades de espacio">
+</div>
+
+<br>
+<button onclick="ejecutarRegresoToolCrib()">Regresar al almacén</button>
+</div>
+
+</div>
+
+<!-- ================= PANEL 4: SCRAP ================= -->
+<div id="panelScrap" class="mov-panel">
+
+<h2>Mandar material a Scrap</h2>
+<p class="section-note">
+Envía material a Scrap desde cualquier caja del almacén, o desde el Tool Crib.
+Este movimiento descuenta el material de forma definitiva del área elegida.
+</p>
+
+<label>Origen</label>
+<div class="radio-group">
+<label><input type="radio" name="scrapOrigen" value="caja" checked onchange="toggleScrapOrigen()"> Desde una caja</label>
+<label><input type="radio" name="scrapOrigen" value="toolcrib" onchange="toggleScrapOrigen()"> Desde Tool Crib</label>
+</div>
+
+<div id="scrapCajaWrap">
+<label>Buscar material o caja de origen</label>
+<div class="mov-buscar-wrap">
+<input class="buscador" id="scrapBuscar" placeholder="Ej. tornillo M4, PN-1234, A-01-01-02..." autocomplete="off" oninput="buscarMaterialScrap()">
+<div id="scrapResultados" class="mov-resultados"></div>
+</div>
+</div>
+
+<div id="scrapToolWrap" style="display:none;">
+<label>Material en Tool Crib</label>
+<select id="scrapToolMaterial" onchange="seleccionarMaterialScrapTool()">
+<option value="">Selecciona un material...</option>
+</select>
+</div>
+
+<div id="scrapOrigenBox" class="mov-origen-box">Ningún material seleccionado todavía.</div>
+
+<label>Cantidad a mandar a Scrap</label>
+<input id="scrapCantidad" type="number" min="1" placeholder="Cantidad">
+
+<label>Comentarios</label>
+<input id="scrapComentarios" placeholder="Comentarios (opcional)">
+
+<br>
+<button onclick="ejecutarEnvioScrap()">Enviar a Scrap</button>
+<button onclick="limpiarEnvioScrap()">Limpiar</button>
+
+<div class="table-wrap" style="margin-top:22px;">
+<table id="tablaScrapTable">
+<thead>
+<tr>
+<th>Material</th>
+<th>PN</th>
+<th>Cantidad en Scrap</th>
+<th>Origen</th>
+<th>Responsable</th>
+<th>Comentarios</th>
+<th>Fecha</th>
+</tr>
+</thead>
+<tbody id="tablaScrap"></tbody>
+</table>
+</div>
+
+</div>
+
+</div>
+</div>
+
+</div>
+</div>
+
+<script type="module" src="auth-global.js"></script>
+<script type="module" src="app.js"></script>
+
+<script>
+
+/* =====================
+   NAVEGACIÓN ENTRE PANELES
+   ===================== */
+
+function mostrarPanel(id){
+  if(!document.getElementById(id)) id = "panelMaterial";
+  document.querySelectorAll(".mov-panel").forEach(p => p.classList.toggle("activo", p.id === id));
+  if(typeof window.marcarSubmenuMov === "function") window.marcarSubmenuMov(id);
+  localStorage.setItem("movPanelActivo", id);
+  window.scrollTo({ top:0 });
+}
+
+/* =====================
+   PANEL 1 — Movimiento de material entre cajas
+   ===================== */
+
+let mov1Seleccion = null;
+
+async function buscarMaterialMovimiento(){
+  const input = document.getElementById("mov1Buscar");
+  const cont = document.getElementById("mov1Resultados");
+
+  const q = input.value.trim();
+  if(!q || typeof window.buscarOcurrenciasMaterial !== "function"){
+    cont.classList.remove("visible");
+    cont.innerHTML = "";
+    return;
+  }
+
+  const resultados = await window.buscarOcurrenciasMaterial(q);
+
+  if(!resultados.length){
+    cont.classList.remove("visible");
+    cont.innerHTML = "";
+    return;
+  }
+
+  cont.innerHTML = "";
+  resultados.forEach(r=>{
+    const item = document.createElement("div");
+    item.className = "mov-resultado-item";
+    item.innerHTML = `<span><b>${r.nombre}</b> ${(r.pn && r.pn !== "NO APLICA") ? "· " + r.pn : ""}</span><small>${r.caja} · ${r.cantidad} pcs</small>`;
+    item.onclick = () => seleccionarOcurrenciaMovimiento(r);
+    cont.appendChild(item);
+  });
+
+  cont.classList.add("visible");
+}
+
+function seleccionarOcurrenciaMovimiento(r){
+  mov1Seleccion = r;
+
+  const box = document.getElementById("mov1OrigenBox");
+  box.innerHTML = `Material: <b>${r.nombre}</b> ${(r.pn && r.pn !== "NO APLICA") ? "(" + r.pn + ")" : ""}<br>
+    Caja de origen: <b>${r.ubicacion}</b> — Disponible: <b>${r.cantidad}</b> pcs`;
+
+  document.getElementById("mov1Buscar").value = r.nombre;
+  document.getElementById("mov1Resultados").classList.remove("visible");
+  document.getElementById("mov1Cantidad").value = r.cantidad;
+  document.getElementById("mov1Cantidad").focus();
+}
+
+function limpiarMovimientoMaterial(){
+  mov1Seleccion = null;
+  document.getElementById("mov1Buscar").value = "";
+  document.getElementById("mov1Resultados").innerHTML = "";
+  document.getElementById("mov1Resultados").classList.remove("visible");
+  document.getElementById("mov1OrigenBox").innerText = "Ningún material seleccionado todavía.";
+  document.getElementById("mov1Cantidad").value = "";
+  document.getElementById("mov1Comentarios").value = "";
+}
+
+async function ejecutarMovimientoMaterial(){
+
+  if(!mov1Seleccion){
+    alert("Primero busca y selecciona el material a mover");
+    return;
+  }
+
+  const cantidad = document.getElementById("mov1Cantidad").value;
+  const comentarios = document.getElementById("mov1Comentarios").value;
+  const destino = document.getElementById("mov1DestCaja").value;
+
+  if(!destino){
+    alert("Selecciona la caja de destino (rack, nivel, slot y caja)");
+    return;
+  }
+
+  const ok = await window.moverMaterialEntreCajas(
+    mov1Seleccion.ubicacion, mov1Seleccion.nombre, destino, cantidad, comentarios
+  );
+
+  if(ok) limpiarMovimientoMaterial();
+}
+
+/* =====================
+   PANEL 2 — Mover cajas
+   ===================== */
+
+async function ejecutarMovimientoCaja(){
+
+  const origenCaja = document.getElementById("cajaOrigCaja").value;
+  const destino = window.leerRackNivelSlot({ rack:"cajaDestRack", nivel:"cajaDestNivel", slot:"cajaDestSlot" });
+  const etiquetaDestino = document.getElementById("cajaDestLabel").value;
+  const comentarios = document.getElementById("cajaMovComentarios").value;
+
+  if(!origenCaja){
+    alert("Selecciona la caja de origen (rack, nivel, slot y caja)");
+    return;
+  }
+
+  const ok = await window.moverCajaUbicacion(
+    origenCaja, destino.rack, destino.nivel, destino.slot, etiquetaDestino, comentarios
+  );
+
+  if(ok){
+    document.getElementById("cajaDestLabel").value = "";
+    document.getElementById("cajaMovComentarios").value = "";
+    await window.initSelectorGrupo({ rack:"cajaOrigRack", nivel:"cajaOrigNivel", slot:"cajaOrigSlot", caja:"cajaOrigCaja" });
+    await window.initSelectorGrupo({ rack:"cajaDestRack", nivel:"cajaDestNivel", slot:"cajaDestSlot" });
+  }
+}
+
+/* =====================
+   PANEL 3 — Tool Crib (enviar)
+   ===================== */
+
+let cribSeleccion = null;
+
+async function buscarMaterialToolCrib(){
+  const input = document.getElementById("cribBuscar");
+  const cont = document.getElementById("cribResultados");
+
+  const q = input.value.trim();
+  if(!q || typeof window.buscarOcurrenciasMaterial !== "function"){
+    cont.classList.remove("visible");
+    cont.innerHTML = "";
+    return;
+  }
+
+  const resultados = await window.buscarOcurrenciasMaterial(q);
+
+  if(!resultados.length){
+    cont.classList.remove("visible");
+    cont.innerHTML = "";
+    return;
+  }
+
+  cont.innerHTML = "";
+  resultados.forEach(r=>{
+    const item = document.createElement("div");
+    item.className = "mov-resultado-item";
+    item.innerHTML = `<span><b>${r.nombre}</b> ${(r.pn && r.pn !== "NO APLICA") ? "· " + r.pn : ""}</span><small>${r.caja} · ${r.cantidad} pcs</small>`;
+    item.onclick = () => seleccionarOcurrenciaToolCrib(r);
+    cont.appendChild(item);
+  });
+
+  cont.classList.add("visible");
+}
+
+function seleccionarOcurrenciaToolCrib(r){
+  cribSeleccion = r;
+
+  const box = document.getElementById("cribOrigenBox");
+  box.innerHTML = `Material: <b>${r.nombre}</b> ${(r.pn && r.pn !== "NO APLICA") ? "(" + r.pn + ")" : ""}<br>
+    Caja de origen: <b>${r.ubicacion}</b> — Disponible: <b>${r.cantidad}</b> pcs`;
+
+  document.getElementById("cribBuscar").value = r.nombre;
+  document.getElementById("cribResultados").classList.remove("visible");
+  document.getElementById("cribCantidad").value = r.cantidad;
+  document.getElementById("cribCantidad").focus();
+}
+
+function limpiarEnvioToolCrib(){
+  cribSeleccion = null;
+  document.getElementById("cribBuscar").value = "";
+  document.getElementById("cribResultados").innerHTML = "";
+  document.getElementById("cribResultados").classList.remove("visible");
+  document.getElementById("cribOrigenBox").innerText = "Ningún material seleccionado todavía.";
+  document.getElementById("cribCantidad").value = "";
+  document.getElementById("cribComentarios").value = "";
+  document.querySelector('input[name="cribCajaModo"][value="conservar"]').checked = true;
+}
+
+async function ejecutarEnvioToolCrib(){
+
+  if(!cribSeleccion){
+    alert("Primero busca y selecciona el material a enviar");
+    return;
+  }
+
+  const cantidad = document.getElementById("cribCantidad").value;
+  const comentarios = document.getElementById("cribComentarios").value;
+  const modo = document.querySelector('input[name="cribCajaModo"]:checked').value;
+  const conservarCaja = (modo === "conservar");
+
+  const ok = await window.enviarATooCrib(
+    cribSeleccion.ubicacion, cribSeleccion.nombre, cantidad, comentarios, conservarCaja
+  );
+
+  if(ok){
+    limpiarEnvioToolCrib();
+    await cargarSelectRegreso();
+  }
+}
+
+/* =====================
+   PANEL 3 — Tool Crib (regresar)
+   ===================== */
+
+let regresoCache = [];
+
+async function cargarSelectRegreso(){
+  if(typeof window.getToolCribCatalogo !== "function") return;
+  regresoCache = await window.getToolCribCatalogo(true);
+
+  const sel = document.getElementById("regresoMaterial");
+  const valorActual = sel.value;
+  sel.innerHTML = `<option value="">Selecciona un material...</option>` +
+    regresoCache.map(m => `<option value="${m.nombre}">${m.nombre} (${m.cantidad} pcs)</option>`).join("");
+  if(valorActual) sel.value = valorActual;
+}
+
+function seleccionarMaterialRegreso(){
+  const nombre = document.getElementById("regresoMaterial").value;
+  const wrap = document.getElementById("regresoDisponible");
+  const m = regresoCache.find(x => x.nombre === nombre);
+
+  if(!m){ wrap.style.display = "none"; return; }
+
+  wrap.style.display = "block";
+  wrap.innerHTML = `Disponible en Tool Crib: <b>${m.cantidad}</b> pcs ${(m.pn && m.pn !== "NO APLICA") ? "· " + m.pn : ""}`;
+  document.getElementById("regresoCantidad").value = m.cantidad;
+}
+
+function toggleRegresoModo(){
+  const modo = document.querySelector('input[name="regresoModo"]:checked').value;
+  document.getElementById("regresoExistenteWrap").style.display = (modo === "existente") ? "block" : "none";
+  document.getElementById("regresoNuevaWrap").style.display = (modo === "nueva") ? "block" : "none";
+}
+
+async function ejecutarRegresoToolCrib(){
+
+  const nombre = document.getElementById("regresoMaterial").value;
+  const cantidad = document.getElementById("regresoCantidad").value;
+  const modo = document.querySelector('input[name="regresoModo"]:checked').value;
+
+  if(!nombre){
+    alert("Selecciona un material del Tool Crib");
+    return;
+  }
+
+  let destino;
+
+  if(modo === "existente"){
+    const ubicacion = document.getElementById("regDestCaja").value;
+    if(!ubicacion){ alert("Selecciona la caja de destino"); return; }
+    destino = { existente: ubicacion };
+  } else {
+    const grupo = window.leerRackNivelSlot({ rack:"regNuevaRack", nivel:"regNuevaNivel", slot:"regNuevaSlot" });
+    const caja = document.getElementById("regNuevaCaja").value;
+    const capacidadTxt = document.getElementById("regNuevaCapacidad").value;
+    destino = {
+      nueva: {
+        rack: grupo.rack, nivel: grupo.nivel, slot: grupo.slot, caja,
+        capacidad: capacidadTxt ? parseFloat(capacidadTxt) : null
+      }
+    };
+  }
+
+  const ok = await window.regresarDeToolCrib(nombre, cantidad, destino);
+
+  if(ok){
+    document.getElementById("regresoCantidad").value = "";
+    document.getElementById("regresoDisponible").style.display = "none";
+    document.getElementById("regNuevaCaja").value = "";
+    document.getElementById("regNuevaCapacidad").value = "";
+    await cargarSelectRegreso();
+    await window.initSelectorGrupo({ rack:"regDestRack", nivel:"regDestNivel", slot:"regDestSlot", caja:"regDestCaja" });
+    await window.initSelectorGrupo({ rack:"regNuevaRack", nivel:"regNuevaNivel", slot:"regNuevaSlot" });
+  }
+}
+
+/* =====================
+   PANEL 4 — Scrap
+   ===================== */
+
+let scrapSeleccion = null; // { tipo: "caja"|"toolcrib", origenId, nombre, pn, cantidad }
+
+function toggleScrapOrigen(){
+  const origen = document.querySelector('input[name="scrapOrigen"]:checked').value;
+  document.getElementById("scrapCajaWrap").style.display = (origen === "caja") ? "block" : "none";
+  document.getElementById("scrapToolWrap").style.display = (origen === "toolcrib") ? "block" : "none";
+  scrapSeleccion = null;
+  document.getElementById("scrapOrigenBox").innerText = "Ningún material seleccionado todavía.";
+  document.getElementById("scrapCantidad").value = "";
+}
+
+async function buscarMaterialScrap(){
+  const input = document.getElementById("scrapBuscar");
+  const cont = document.getElementById("scrapResultados");
+
+  const q = input.value.trim();
+  if(!q || typeof window.buscarOcurrenciasMaterial !== "function"){
+    cont.classList.remove("visible");
+    cont.innerHTML = "";
+    return;
+  }
+
+  const resultados = await window.buscarOcurrenciasMaterial(q);
+
+  if(!resultados.length){
+    cont.classList.remove("visible");
+    cont.innerHTML = "";
+    return;
+  }
+
+  cont.innerHTML = "";
+  resultados.forEach(r=>{
+    const item = document.createElement("div");
+    item.className = "mov-resultado-item";
+    item.innerHTML = `<span><b>${r.nombre}</b> ${(r.pn && r.pn !== "NO APLICA") ? "· " + r.pn : ""}</span><small>${r.caja} · ${r.cantidad} pcs</small>`;
+    item.onclick = () => {
+      scrapSeleccion = { tipo:"caja", origenId:r.ubicacion, nombre:r.nombre, pn:r.pn, cantidad:r.cantidad };
+      document.getElementById("scrapOrigenBox").innerHTML =
+        `Material: <b>${r.nombre}</b><br>Caja de origen: <b>${r.ubicacion}</b> — Disponible: <b>${r.cantidad}</b> pcs`;
+      document.getElementById("scrapBuscar").value = r.nombre;
+      cont.classList.remove("visible");
+      document.getElementById("scrapCantidad").value = r.cantidad;
+    };
+    cont.appendChild(item);
+  });
+
+  cont.classList.add("visible");
+}
+
+async function cargarSelectScrapTool(){
+  if(typeof window.getToolCribCatalogo !== "function") return;
+  const lista = await window.getToolCribCatalogo();
+  const sel = document.getElementById("scrapToolMaterial");
+  sel.innerHTML = `<option value="">Selecciona un material...</option>` +
+    lista.map(m => `<option value="${m.nombre}" data-cantidad="${m.cantidad}" data-pn="${m.pn||''}">${m.nombre} (${m.cantidad} pcs)</option>`).join("");
+}
+
+function seleccionarMaterialScrapTool(){
+  const sel = document.getElementById("scrapToolMaterial");
+  const op = sel.selectedOptions[0];
+  if(!op || !sel.value){ scrapSeleccion = null; return; }
+
+  const cantidad = parseInt(op.dataset.cantidad) || 0;
+  scrapSeleccion = { tipo:"toolcrib", origenId:sel.value, nombre:sel.value, pn:op.dataset.pn, cantidad };
+  document.getElementById("scrapOrigenBox").innerHTML =
+    `Material: <b>${sel.value}</b><br>Origen: <b>Tool Crib</b> — Disponible: <b>${cantidad}</b> pcs`;
+  document.getElementById("scrapCantidad").value = cantidad;
+}
+
+function limpiarEnvioScrap(){
+  scrapSeleccion = null;
+  document.getElementById("scrapBuscar").value = "";
+  document.getElementById("scrapResultados").innerHTML = "";
+  document.getElementById("scrapResultados").classList.remove("visible");
+  document.getElementById("scrapOrigenBox").innerText = "Ningún material seleccionado todavía.";
+  document.getElementById("scrapCantidad").value = "";
+  document.getElementById("scrapComentarios").value = "";
+}
+
+async function ejecutarEnvioScrap(){
+
+  if(!scrapSeleccion){
+    alert("Primero selecciona el material a mandar a Scrap");
+    return;
+  }
+
+  const cantidad = document.getElementById("scrapCantidad").value;
+  const comentarios = document.getElementById("scrapComentarios").value;
+
+  const ok = await window.enviarAScrap(
+    scrapSeleccion.tipo, scrapSeleccion.origenId, scrapSeleccion.nombre, cantidad, comentarios
+  );
+
+  if(ok){
+    limpiarEnvioScrap();
+    await cargarSelectRegreso();
+    await cargarSelectScrapTool();
+  }
+}
+
+/* =====================
+   CARGA INICIAL
+   ===================== */
+
+document.addEventListener("DOMContentLoaded", async () => {
+
+  let intentos = 0;
+  while (!window.currentUser && intentos < 20) {
+    await new Promise(r => setTimeout(r, 100));
+    intentos++;
+  }
+
+  const esperar = setInterval(async () => {
+    if(typeof window.initSelectorGrupo === "function"){
+      clearInterval(esperar);
+
+      await window.initSelectorGrupo({ rack:"mov1DestRack", nivel:"mov1DestNivel", slot:"mov1DestSlot", caja:"mov1DestCaja" });
+      await window.initSelectorGrupo({ rack:"cajaOrigRack", nivel:"cajaOrigNivel", slot:"cajaOrigSlot", caja:"cajaOrigCaja" });
+      await window.initSelectorGrupo({ rack:"cajaDestRack", nivel:"cajaDestNivel", slot:"cajaDestSlot" });
+      await window.initSelectorGrupo({ rack:"regDestRack", nivel:"regDestNivel", slot:"regDestSlot", caja:"regDestCaja" });
+      await window.initSelectorGrupo({ rack:"regNuevaRack", nivel:"regNuevaNivel", slot:"regNuevaSlot" });
+
+      if(typeof window.renderToolCrib === "function") await window.renderToolCrib(true);
+      if(typeof window.renderScrap === "function") await window.renderScrap(true);
+      await cargarSelectRegreso();
+      await cargarSelectScrapTool();
+    }
+  }, 150);
+
+  const hashPanel = (location.hash || "").replace("#","");
+  const panelGuardado = document.getElementById(hashPanel)
+    ? hashPanel
+    : (localStorage.getItem("movPanelActivo") || "panelMaterial");
+  mostrarPanel(panelGuardado);
+
+  document.body.classList.add("loaded");
+
+  document.querySelectorAll(".sidebar a").forEach(a => {
+    if (a.getAttribute("href") === location.pathname.split("/").pop()) {
+      a.classList.add("active");
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    if(!e.target.closest(".mov-buscar-wrap")){
+      document.getElementById("mov1Resultados")?.classList.remove("visible");
+      document.getElementById("cribResultados")?.classList.remove("visible");
+      document.getElementById("scrapResultados")?.classList.remove("visible");
+    }
+  });
+
+});
+
+</script>
+
+<script src="nav.js"></script>
+
+</body>
+</html>

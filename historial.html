@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Historial - L10 ALMACEN</title>
+<link rel="stylesheet" href="style.css">
+
+<style>
+body{ opacity:0; transition:opacity 0.3s ease; }
+body.loaded{ opacity:1; }
+</style>
+
+</head>
+
+<body>
+
+<div class="sidebar">
+<h2>L10 ALMACEN<span class="tag">Warehouse System</span></h2>
+<nav>
+<a href="index.html"><span class="num">01</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Inicio</a>
+<a href="entrada.html"><span class="num">02</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 20h16"/></svg>Registrar Entrada</a>
+<a href="salida.html"><span class="num">03</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="M7 14l5-5 5 5"/><path d="M4 4h16"/></svg>Registrar Salida</a>
+<a href="stock.html"><span class="num">04</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>Inventario</a>
+<a href="racks.html"><span class="num">05</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Racks y Cajas</a>
+<div class="nav-group" id="navMov"><a href="movimientos.html" class="nav-parent" id="navMovToggle" aria-expanded="false"><span class="num">06</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4M7 4l-3 3M7 4l3 3"/><path d="M17 8v12M17 20l3-3M17 20l-3-3"/></svg>Movimientos<svg class="nav-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></a><div class="nav-submenu" id="navMovSub"><a href="movimientos.html#panelMaterial" class="nav-sub" data-panel="panelMaterial"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13M14 4l4 4-4 4"/><path d="M20 16H7M10 12l-4 4 4 4"/></svg><span>Material entre cajas</span></a><a href="movimientos.html#panelCajas" class="nav-sub" data-panel="panelCajas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg><span>Mover cajas / slots</span></a><a href="movimientos.html#panelTool" class="nav-sub" data-panel="panelTool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.1L3 17.7V21h3.3l6.3-6.3a4 4 0 0 0 5.1-5.4l-2.5 2.5-2.3-.6-.6-2.3z"/></svg><span>Material a Tool Crib</span></a><a href="movimientos.html#panelScrap" class="nav-sub" data-panel="panelScrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></svg><span>Material a Scrap</span></a></div></div>
+<a href="categorias.html"><span class="num">07</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41L11 3.83A2 2 0 0 0 9.59 3.24L4 3a1 1 0 0 0-1 1l.24 5.59a2 2 0 0 0 .58 1.41l9.58 9.58a2 2 0 0 0 2.83 0l4.36-4.36a2 2 0 0 0 0-2.81z"/><circle cx="7.5" cy="7.5" r="1.2"/></svg>Categorías</a>
+<a href="historial.html"><span class="num">08</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Historial</a>
+</nav>
+<div class="sidebar-foot">L10 &copy; 2026<br>SISTEMA DE INVENTARIO</div>
+</div>
+
+<div class="user-bar">
+<span id="usuarioActivo">Cargando...</span>
+<button onclick="logout()">Cerrar sesión</button>
+</div>
+
+<div class="main">
+
+<div class="card">
+
+<span class="eyebrow">Movimientos</span>
+<h2>Historial de movimientos</h2>
+
+<input class="buscador" id="valor" 
+placeholder="Buscar por caja (ej. A-01-01) o por componente..."
+onkeyup="filtrarHistorial()"
+>
+
+<select id="tipoFiltro" onchange="filtrarHistorial()">
+<option value="todos">Todos</option>
+<option value="ENTRADA">Solo Entradas</option>
+<option value="SALIDA">Solo Salidas</option>
+<option value="MOVIMIENTO MATERIAL">Solo Movimiento de material</option>
+<option value="ENVIO TOOL CRIB">Solo Envíos a Tool Crib</option>
+<option value="REGRESO TOOL CRIB">Solo Regresos de Tool Crib</option>
+<option value="ENVIO SCRAP">Solo Envíos a Scrap</option>
+<option value="MOVIMIENTO CAJA">Solo Movimiento de cajas</option>
+</select>
+
+<div style="display:flex; gap:12px; margin-bottom:8px;">
+<button id="btnExport">📊 Exportar CSV</button>
+<button onclick="resetHistorial()">🔄 Actualizar historial</button>
+</div>
+
+<div class="table-wrap">
+<table id="tablaCompletaHistorial">
+
+<thead>
+<tr>
+<th>Fecha</th>
+<th>Movimiento</th>
+<th>Caja / Ubicación</th>
+<th>Componente</th>
+<th>Cantidad</th>
+<th>Responsable</th>
+<th>Comentarios</th>
+</tr>
+</thead>
+
+<tbody id="tablaHistorial"></tbody>
+
+</table>
+</div>
+
+</div>
+
+</div>
+
+<!-- AUTH -->
+<script type="module" src="auth-global.js"></script>
+
+<!-- APP -->
+<script type="module" src="app.js"></script>
+
+<!-- CARGA SIN PARPADEO -->
+<script>
+document.addEventListener("DOMContentLoaded", async () => {
+
+  let intentos = 0;
+
+  while (!window.currentUser && intentos < 20) {
+    await new Promise(r => setTimeout(r, 100));
+    intentos++;
+  }
+
+  console.log("Historial listo");
+
+  if (typeof window.viewHistory === "function") {
+    window.viewHistory();
+  }
+
+  document.body.classList.add("loaded");
+
+  document.querySelectorAll(".sidebar a").forEach(a => {
+    if (a.getAttribute("href") === location.pathname.split("/").pop()) {
+      a.classList.add("active");
+    }
+  });
+
+});
+</script>
+
+<!-- FILTRO -->
+<script>
+function filtrarHistorial(){
+
+let texto = document.getElementById("valor").value.toLowerCase();
+let filtro = document.getElementById("tipoFiltro").value;
+
+let filas = document.querySelectorAll("#tablaHistorial tr");
+
+filas.forEach(fila => {
+
+let contenido = fila.innerText.toLowerCase();
+let tipo = fila.children[1]?.innerText;
+
+let coincideTexto = contenido.includes(texto);
+let coincideTipo = (filtro === "todos") || (tipo === filtro);
+
+fila.style.display = (coincideTexto && coincideTipo) ? "" : "none";
+
+});
+}
+</script>
+
+<!-- RESET -->
+<script>
+function resetHistorial(){
+
+document.getElementById("valor").value = "";
+document.getElementById("tipoFiltro").value = "todos";
+
+let filas = document.querySelectorAll("#tablaHistorial tr");
+filas.forEach(fila=>{
+fila.style.display = "";
+});
+
+if(typeof window.viewHistory === "function"){
+window.viewHistory();
+}
+
+}
+</script>
+
+<!-- EXPORTACIÓN -->
+<script>
+function exportarHistorial(){
+
+let tabla = document.getElementById("tablaCompletaHistorial");
+
+if(!tabla){
+alert("No se encontró la tabla");
+return;
+}
+
+let csv = "";
+
+let headers = tabla.querySelectorAll("thead th");
+let headRow = [];
+
+headers.forEach(h=>{
+headRow.push(h.innerText.replace(/,/g," "));
+});
+
+csv += headRow.join(",") + "\n";
+
+let filas = tabla.querySelectorAll("tbody tr");
+
+filas.forEach(fila=>{
+
+if(fila.style.display === "none") return;
+
+let cols = fila.querySelectorAll("td");
+let row = [];
+
+cols.forEach(col=>{
+row.push(col.innerText.replace(/,/g," "));
+});
+
+if(row.length > 0){
+csv += row.join(",") + "\n";
+}
+
+});
+
+let blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+let link = document.createElement("a");
+
+link.href = URL.createObjectURL(blob);
+link.download = "historial.csv";
+link.click();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+let btn = document.getElementById("btnExport");
+if(btn){
+btn.addEventListener("click", exportarHistorial);
+}
+});
+</script>
+
+<script src="nav.js"></script>
+
+</body>
+</html>

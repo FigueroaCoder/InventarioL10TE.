@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>L10 ALMACEN</title>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body class="home-page">
+
+<div class="sidebar">
+
+<h2>L10 ALMACEN
+<span class="tag">Warehouse System</span>
+</h2>
+
+<nav>
+<a href="index.html"><span class="num">01</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Inicio</a>
+<a href="entrada.html"><span class="num">02</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 20h16"/></svg>Registrar Entrada</a>
+<a href="salida.html"><span class="num">03</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="M7 14l5-5 5 5"/><path d="M4 4h16"/></svg>Registrar Salida</a>
+<a href="stock.html"><span class="num">04</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>Inventario</a>
+<a href="racks.html"><span class="num">05</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Racks y Cajas</a>
+<div class="nav-group" id="navMov"><a href="movimientos.html" class="nav-parent" id="navMovToggle" aria-expanded="false"><span class="num">06</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4M7 4l-3 3M7 4l3 3"/><path d="M17 8v12M17 20l3-3M17 20l-3-3"/></svg>Movimientos<svg class="nav-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></a><div class="nav-submenu" id="navMovSub"><a href="movimientos.html#panelMaterial" class="nav-sub" data-panel="panelMaterial"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13M14 4l4 4-4 4"/><path d="M20 16H7M10 12l-4 4 4 4"/></svg><span>Material entre cajas</span></a><a href="movimientos.html#panelCajas" class="nav-sub" data-panel="panelCajas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg><span>Mover cajas / slots</span></a><a href="movimientos.html#panelTool" class="nav-sub" data-panel="panelTool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.1L3 17.7V21h3.3l6.3-6.3a4 4 0 0 0 5.1-5.4l-2.5 2.5-2.3-.6-.6-2.3z"/></svg><span>Material a Tool Crib</span></a><a href="movimientos.html#panelScrap" class="nav-sub" data-panel="panelScrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></svg><span>Material a Scrap</span></a></div></div>
+<a href="categorias.html"><span class="num">07</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41L11 3.83A2 2 0 0 0 9.59 3.24L4 3a1 1 0 0 0-1 1l.24 5.59a2 2 0 0 0 .58 1.41l9.58 9.58a2 2 0 0 0 2.83 0l4.36-4.36a2 2 0 0 0 0-2.81z"/><circle cx="7.5" cy="7.5" r="1.2"/></svg>Categorías</a>
+<a href="historial.html"><span class="num">08</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Historial</a>
+
+</nav>
+
+<div class="sidebar-foot">L10 &copy; 2026<br>SISTEMA DE INVENTARIO</div>
+
+</div>
+
+<!-- USER BAR -->
+<div class="user-bar">
+<span id="usuarioActivo">Cargando...</span>
+<button onclick="logout()">Cerrar sesión</button>
+</div>
+
+<div class="main home">
+<span class="eyebrow">Panel principal</span>
+<h1>INVENTORY SYSTEM L10</h1>
+
+<p>
+Bienvenido al sistema de control de inventario. Registra movimientos, consulta existencias y revisa el historial completo de entradas y salidas.
+</p>
+
+<div class="home-links">
+<a href="entrada.html">↓ Registrar entrada</a>
+<a href="salida.html">↑ Registrar salida</a>
+<a href="stock.html">▦ Ver inventario</a>
+<a href="racks.html">▤ Racks y cajas</a>
+<a href="movimientos.html">⇄ Movimientos</a>
+<a href="categorias.html">🏷 Categorías</a>
+<a href="historial.html">◷ Ver historial</a>
+</div>
+
+</div>
+
+<!-- ORDEN CORRECTO -->
+<script type="module" src="auth-global.js"></script>
+<script type="module" src="app.js"></script>
+
+<!-- VALIDACIÓN DE SESIÓN COMPLETA -->
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+
+  const interval = setInterval(() => {
+
+    if (!window.currentUser) return;
+
+    clearInterval(interval);
+
+    console.log("Sesión activa:", window.currentUser.email);
+
+  }, 200);
+
+  // marcar link activo en sidebar
+  document.querySelectorAll(".sidebar a").forEach(a => {
+    if (a.getAttribute("href") === location.pathname.split("/").pop()) {
+      a.classList.add("active");
+    }
+  });
+
+});
+</script>
+
+<script src="nav.js"></script>
+
+</body>
+</html>

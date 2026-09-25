@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login - L10 ALMACEN</title>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body class="login-page">
+
+<div class="login-brand">
+<div class="mark">Warehouse System</div>
+<h1>L10<br>ALMACEN</h1>
+<p>Control de inventario, entradas, salidas e historial en un solo lugar. Acceso exclusivo para personal autorizado.</p>
+<div class="stripe"></div>
+</div>
+
+<div class="login-side">
+<div class="card">
+
+<span class="eyebrow">Acceso</span>
+<h2>Iniciar sesión</h2>
+
+<label>Correo</label>
+<input 
+id="user" 
+placeholder="tucorreo@empresa.com"
+autocomplete="username"
+>
+
+<label>Contraseña</label>
+<input 
+id="pass" 
+type="password"
+placeholder="••••••••"
+autocomplete="current-password"
+>
+
+<button id="btnLogin">
+Entrar
+</button>
+
+<div class="login-footer">
+&copy; 2026 &nbsp;<b>Programmer:</b> Roberto Figueroa &nbsp;·&nbsp;
+<b>Collaborating Programmer:</b> Jesús Vásquez<br>
+<b>Idea &amp; Concept:</b> Roberto Figueroa, Adán Ávila
+</div>
+
+</div>
+</div>
+
+<script type="module">
+
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+
+import { 
+  getAuth, 
+  signInWithEmailAndPassword, 
+  setPersistence, 
+  browserLocalPersistence,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAX-WKQe_AvWQzNswGC1QIMRzz3RTMZB2o",
+  authDomain: "almacen-web-2026.firebaseapp.com",
+  projectId: "almacen-web-2026",
+  storageBucket: "almacen-web-2026.firebasestorage.app",
+  messagingSenderId: "777489188342",
+  appId: "1:777489188342:web:992bdeeeaa8bd89409f3d7",
+  measurementId: "G-EX9YG2K41P"
+};
+
+const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+const auth = getAuth(app);
+
+// CONTROL DE SESIÓN (SOLO SI YA EXISTE)
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    window.location.replace("index.html");
+  }
+});
+
+// DOM READY
+document.addEventListener("DOMContentLoaded", () => {
+
+  const btn = document.getElementById("btnLogin");
+
+  btn.addEventListener("click", loginUser);
+
+  document.getElementById("pass").addEventListener("keypress", (e) => {
+    if (e.key === "Enter") loginUser();
+  });
+
+});
+
+// LOGIN
+async function loginUser(){
+
+  const btn = document.getElementById("btnLogin");
+  btn.disabled = true;
+
+  const email = document.getElementById("user").value.trim();
+  const password = document.getElementById("pass").value.trim();
+
+  if(!email || !password){
+    alert("Completa todos los campos");
+    btn.disabled = false;
+    return;
+  }
+
+  try {
+
+    await setPersistence(auth, browserLocalPersistence);
+
+    await signInWithEmailAndPassword(auth, email, password);
+
+    // SOLO REDIRECCIÓN FINAL
+    window.location.replace("index.html");
+
+  } catch (error) {
+
+    console.error(error);
+    alert(error.code + " - " + error.message);
+
+    btn.disabled = false;
+  }
+
+}
+
+</script>
+
+</body>
+</html>
