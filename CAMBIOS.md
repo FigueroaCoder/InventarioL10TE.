@@ -244,3 +244,35 @@ Arrastrar gira la cámara; la rueda hace zoom.
   sus dimensiones en el 3D; el status (vacía/poco/medio/llena) solo cambia el color,
   nunca el tamaño — se puede definir al crearla o cambiarla después desde su selector
   "Tamaño de caja", sin depender de si tiene contenido o no.
+
+---
+
+## Actualización 9
+
+- **Tarjeta de caja simplificada en el visor 3D:** se quitó el botón **↔** (mover
+  material a otra caja) de cada componente listado, y se quitó la fila de
+  **categoría/espacio** del formulario rápido de la caja. La categoría y el
+  espacio que ocupa un material ahora se asignan únicamente desde **Registrar
+  Entrada**, que ya tenía esos campos.
+- **Número de caja único en todo el almacén:** ya no puede existir, por
+  ejemplo, una "Caja 01" en dos racks o slots distintos — el sistema lo revisa
+  al crear cualquier caja nueva (desde Racks y Cajas, el visor 3D o Registrar
+  Entrada) y bloquea el número si ya está en uso en cualquier otra ubicación.
+- **Numeración automática:** al crear una caja nueva, el número propuesto por
+  default es el siguiente entero disponible después del más alto ya
+  registrado (se puede cambiar por cualquier otra etiqueta si se prefiere).
+- **Crear cajas desde Registrar Entrada:** con rack, nivel y slot elegidos,
+  el botón **+ Nueva caja en este slot** crea la caja ahí mismo y la deja
+  lista para registrar la entrada, sin salir del formulario.
+- **"Caja seleccionada" con su número:** el campo ahora muestra la ubicación
+  completa y, entre paréntesis, el número de caja — por ejemplo
+  `A-03-01-06 (caja 06)`.
+- **Editar materiales ya registrados — solo administrador:** en Inventario,
+  `roberto.figueroa@gdl.fii-na.com` ve un botón **✏ Editar** junto a cada
+  material para corregir cantidad, Part Number y comentarios. El cambio queda
+  en Historial como `ACTUALIZACION`.
+- **Borrar movimientos del Historial — solo administrador:** la tabla de
+  Historial ahora tiene una columna de acciones con un botón **🗑** (solo
+  visible para el administrador) que borra ese movimiento de forma
+  permanente. Se agregó el filtro "Solo Actualizaciones" al desplegable de
+  tipos.
