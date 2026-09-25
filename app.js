@@ -73,6 +73,35 @@ function buildUbicacion(rack, nivel, slot, caja){
   return `${rack}-${pad2(nivel)}-${pad2(slot)}-${normCaja(caja)}`;
 }
 
+/* El número/etiqueta de una caja es único en TODO el almacén: no puede
+   repetirse en otro rack, nivel o slot (ej. solo puede existir una "Caja 01"
+   en total). */
+function cajaNumeroDuplicado(cajaId, ubicacionAIgnorar){
+  const norm = normCaja(cajaId);
+  return cacheCajas.some(c =>
+    normCaja(c.caja || "") === norm &&
+    c.ubicacion !== ubicacionAIgnorar
+  );
+}
+
+/* Si la etiqueta de la caja es puramente numérica, devuelve su valor; si no, null. */
+function numeroDeCaja(cajaStr){
+  const c = String(cajaStr ?? "").trim();
+  if(/^\d+$/.test(c)) return parseInt(c, 10);
+  return null;
+}
+
+/* Próximo número entero disponible = el entero más alto ya registrado + 1
+   (solo considera cajas cuya etiqueta es un número). */
+function siguienteNumeroCaja(){
+  let max = 0;
+  cacheCajas.forEach(c=>{
+    const n = numeroDeCaja(c.caja || "");
+    if(n !== null && n > max) max = n;
+  });
+  return pad2(max + 1);
+}
+
 /* varias cajas pueden vivir dentro del mismo slot */
 function cajasDeSlot(rack, nivel, slot){
   return cacheCajas.filter(c =>
@@ -240,8 +269,10 @@ window.showStock = async function(force){
     let html = "";
 
     filas.forEach(p=>{
+      const nombreEsc = (p.nombre||"").replace(/'/g,"\\'");
       const accionesTd = isAdmin()
-        ? `<button class="btn-danger" title="Eliminar material" onclick="eliminarMaterial('${p.ubicacion}','${(p.nombre||"").replace(/'/g,"\\'")}')">🗑 Eliminar</button>`
+        ? `<button style="padding:6px 10px;font-size:0.8rem;margin-right:6px;" title="Editar material" onclick="editarMaterial('${p.ubicacion}','${nombreEsc}')">✏ Editar</button>
+           <button class="btn-danger" title="Eliminar material" onclick="eliminarMaterial('${p.ubicacion}','${nombreEsc}')">🗑 Eliminar</button>`
         : `<span style="color:var(--ink-soft);">—</span>`;
 
       html += `
@@ -437,10 +468,33 @@ window.viewHistory = async function(){
 
   const snapshot = await getDocs(collection(db,"historial"));
 
-  historialCache = snapshot.docs.map(doc => doc.data());
+  historialCache = snapshot.docs.map(d => ({ idDoc: d.id, ...d.data() }));
   historialCache.sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
 
   renderHistorial(historialCache);
+};
+
+/* =====================
+BORRAR UN MOVIMIENTO DEL HISTORIAL — SOLO ADMIN
+===================== */
+
+window.eliminarMovimientoHistorial = async function(idDoc){
+
+  if(bloquearSiNoAdmin("Solo el administrador puede borrar movimientos del historial.")) return;
+
+  if(!confirm("¿Borrar este movimiento del historial? Esta acción no se puede deshacer.")) return;
+
+  try{
+    await deleteDoc(doc(db,"historial",idDoc));
+
+    historialCache = historialCache.filter(d => d.idDoc !== idDoc);
+    renderHistorial(historialCache);
+
+  }catch(e){
+    console.error(e);
+    alert("Error borrando el movimiento del historial");
+  }
+
 };
 
 /* =====================
@@ -467,6 +521,10 @@ function renderHistorial(data){
     let html = "";
 
     data.forEach(d => {
+      const accionesTd = (isAdmin() && d.idDoc)
+        ? `<button class="btn-danger" style="padding:6px 10px;font-size:0.8rem;" title="Borrar del historial" onclick="eliminarMovimientoHistorial('${d.idDoc}')">🗑</button>`
+        : `<span style="color:var(--ink-soft);">—</span>`;
+
       html += `
 <tr>
 <td>${d.fecha || ""}</td>
@@ -476,10 +534,11 @@ function renderHistorial(data){
 <td>${d.cantidad || 0}</td>
 <td>${d.responsable || ""}</td>
 <td>${d.comentarios || ""}</td>
+<td>${accionesTd}</td>
 </tr>`;
     });
 
-    tabla.innerHTML = html || `<tr><td colspan="7" style="color:var(--ink-soft);">Sin movimientos registrados</td></tr>`;
+    tabla.innerHTML = html || `<tr><td colspan="8" style="color:var(--ink-soft);">Sin movimientos registrados</td></tr>`;
 
   }catch(e){
     console.error("Error renderizando historial:", e);
@@ -697,14 +756,26 @@ CAJAS DENTRO DE UN SLOT (número manual)
 
 window.crearCajaEnSlot = async function(rack, nivel, slot){
 
-  const entrada = prompt(`Número o etiqueta de la nueva caja para ${rack}-${pad2(nivel)}-${pad2(slot)}:`);
-  if(entrada === null) return;
+  await loadCajas(true);
+
+  const sugerido = siguienteNumeroCaja();
+  const entrada = prompt(
+    `Número o etiqueta de la nueva caja para ${rack}-${pad2(nivel)}-${pad2(slot)}:\n` +
+    `(cada número de caja solo puede existir una vez en todo el almacén)`,
+    sugerido
+  );
+  if(entrada === null) return null;
 
   const cajaId = normCaja(entrada);
 
   if(!cajaId){
     alert("Número de caja inválido");
-    return;
+    return null;
+  }
+
+  if(cajaNumeroDuplicado(cajaId)){
+    alert(`Ya existe una caja "${cajaId}" en el almacén (en otro rack o slot). Cada número de caja solo puede existir una vez en todo el sistema.`);
+    return null;
   }
 
   const capacidadTxt = prompt("Capacidad de espacio de esta caja (número de unidades de espacio que tiene disponibles). Déjalo vacío si no quieres controlar su espacio:", "");
@@ -722,8 +793,8 @@ window.crearCajaEnSlot = async function(rack, nivel, slot){
     const cajaSnap = await getDoc(cajaRef);
 
     if(cajaSnap.exists()){
-      alert("Ya existe una caja con ese número en este slot");
-      return;
+      alert("Ya existe una caja con esa ubicación exacta");
+      return null;
     }
 
     await setDoc(cajaRef, {
@@ -734,11 +805,56 @@ window.crearCajaEnSlot = async function(rack, nivel, slot){
     await loadCajas(true);
     if(typeof window.renderRacksPage === "function") window.renderRacksPage();
 
+    return ubicacion;
+
   }catch(e){
     console.error(e);
     alert("Error creando caja");
+    return null;
   }
 
+};
+
+/* Crear una caja nueva desde el formulario de Registrar Entrada (entrada.html).
+   Usa el rack/nivel/slot ya elegidos ahí, respeta la unicidad global del
+   número de caja y, al terminar, deja la caja nueva seleccionada en el
+   formulario. */
+window.crearCajaDesdeEntrada = async function(){
+
+  const rackSelect = document.getElementById("rackSelect");
+  const nivelSelect = document.getElementById("nivelSelect");
+  const slotSelect = document.getElementById("slotSelect");
+  const cajaSelect = document.getElementById("cajaSelect");
+
+  const rack = rackSelect?.value;
+  const nivel = nivelSelect?.value;
+  const slot = slotSelect?.value;
+
+  if(!rack || !nivel || !slot){
+    alert("Selecciona rack, nivel y slot antes de crear una caja nueva");
+    return;
+  }
+
+  const ubicacion = await window.crearCajaEnSlot(rack, nivel, slot);
+  if(!ubicacion) return;
+
+  if(typeof window.initUbicacionSelectors === "function"){
+    await window.initUbicacionSelectors();
+  }
+
+  if(rackSelect){
+    rackSelect.value = rack;
+    if(rackSelect.onchange) rackSelect.onchange();
+  }
+  if(nivelSelect) nivelSelect.value = nivel;
+  if(slotSelect){
+    slotSelect.value = slot;
+    if(slotSelect.onchange) slotSelect.onchange();
+  }
+  if(cajaSelect){
+    cajaSelect.value = ubicacion;
+    if(cajaSelect.onchange) cajaSelect.onchange();
+  }
 };
 
 window.eliminarCaja = async function(ubicacion){
@@ -819,6 +935,86 @@ window.eliminarMaterial = async function(ubicacion, nombreMaterial){
   }catch(e){
     console.error(e);
     alert("Error eliminando material");
+  }
+
+};
+
+/* =====================
+EDITAR MATERIAL YA REGISTRADO — SOLO ADMIN
+Permite corregir cantidad, PN y comentarios de un material que ya existe
+en una caja. Queda registrado en Historial como "ACTUALIZACION".
+===================== */
+
+window.editarMaterial = async function(ubicacion, nombreMaterial){
+
+  if(bloquearSiNoAdmin("Solo el administrador puede editar materiales del inventario.")) return;
+
+  try{
+
+    const cajaRef = doc(db,"cajas",ubicacion);
+    const cajaSnap = await getDoc(cajaRef);
+
+    if(!cajaSnap.exists()){
+      alert("La caja no existe");
+      return;
+    }
+
+    let data = cajaSnap.data();
+    let componentes = data.componentes || [];
+
+    const idx = componentes.findIndex(c => c.nombre.toLowerCase() === nombreMaterial.toLowerCase());
+
+    if(idx < 0){
+      alert("Ese material ya no está en esta caja");
+      return;
+    }
+
+    const actual = componentes[idx];
+
+    const cantidadTxt = prompt(`Cantidad para "${actual.nombre}" (caja ${ubicacion}):`, String(actual.cantidad ?? 0));
+    if(cantidadTxt === null) return;
+    const nuevaCantidad = parseInt(cantidadTxt);
+    if(isNaN(nuevaCantidad) || nuevaCantidad < 0){
+      alert("Cantidad inválida");
+      return;
+    }
+
+    const pnTxt = prompt("Part Number:", actual.pn || "NO APLICA");
+    if(pnTxt === null) return;
+
+    const comentariosTxt = prompt("Comentarios:", actual.comentarios || "");
+    if(comentariosTxt === null) return;
+
+    const cambios = [];
+    if(nuevaCantidad !== (actual.cantidad || 0)) cambios.push(`cantidad ${actual.cantidad || 0} → ${nuevaCantidad}`);
+    if((pnTxt.trim() || "NO APLICA") !== (actual.pn || "NO APLICA")) cambios.push(`PN "${actual.pn || ""}" → "${pnTxt.trim()}"`);
+    if(comentariosTxt !== (actual.comentarios || "")) cambios.push("comentarios actualizados");
+
+    componentes[idx].cantidad = nuevaCantidad;
+    componentes[idx].pn = pnTxt.trim() || "NO APLICA";
+    componentes[idx].comentarios = comentariosTxt;
+
+    await updateDoc(cajaRef, { componentes });
+
+    await addDoc(collection(db,"historial"),{
+      fecha: new Date().toLocaleString(),
+      accion: "ACTUALIZACION",
+      ubicacion,
+      nombre: actual.nombre,
+      cantidad: nuevaCantidad,
+      responsable: getUser(),
+      comentarios: cambios.length ? `Editado por administrador (${cambios.join("; ")})` : "Editado por administrador"
+    });
+
+    await loadCajas(true);
+    if(typeof window.showStock === "function") window.showStock(true);
+    if(typeof window.renderRacksPage === "function") window.renderRacksPage();
+
+    alert("Material actualizado");
+
+  }catch(e){
+    console.error(e);
+    alert("Error editando material");
   }
 
 };
@@ -1386,7 +1582,9 @@ window.initUbicacionSelectors = async function(){
   }
 
   function actualizarDisplay(){
-    cajaDisplay.value = cajaSelect.value || "";
+    if(!cajaSelect.value){ cajaDisplay.value = ""; return; }
+    const c = cacheCajas.find(x => x.ubicacion === cajaSelect.value);
+    cajaDisplay.value = c ? `${c.ubicacion} (caja ${c.caja || c.ubicacion})` : cajaSelect.value;
   }
 
   rackSelect.onchange = () => {
