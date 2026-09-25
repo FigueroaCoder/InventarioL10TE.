@@ -276,3 +276,19 @@ Arrastrar gira la cámara; la rueda hace zoom.
   visible para el administrador) que borra ese movimiento de forma
   permanente. Se agregó el filtro "Solo Actualizaciones" al desplegable de
   tipos.
+
+---
+
+## Actualización 10
+
+- **Categoría de material directamente desde el visor 3D:** dentro de una caja
+  abierta en el rack 3D ya no hace falta ir a Registrar Entrada para
+  clasificar un material. Cada componente listado tiene su propio selector
+  de categoría (Consumible indirecto, Material en SAP, Material recibido de
+  Taiwán sin registro en SAP, Material en validación de Scrap, Material en
+  validación de envío a Tool Crib), y el formulario para agregar un
+  componente nuevo también incluye ese mismo selector antes de guardar.
+  El status de la caja (vacía/poco/medio/llena) y su tamaño (chica/mediana/
+  grande) ya vivían en esa misma tarjeta y se mantienen igual — ahora las
+  tres asignaciones (status, tamaño y categoría) se hacen sin salir del
+  slot/caja dentro del 3D.
