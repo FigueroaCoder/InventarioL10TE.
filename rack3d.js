@@ -797,16 +797,26 @@
   /* =====================
      TARJETAS HTML (conectadas a Firestore)
   ===================== */
+  const catOptions = (selected) =>
+    `<option value="" ${!selected ? 'selected' : ''}>Sin categoría</option>` +
+    (window.CATEGORIAS_MATERIAL || []).map(c =>
+      `<option value="${esc(c)}" ${selected === c ? 'selected' : ''}>${esc(c)}</option>`
+    ).join('');
+
   function cardHtml(box) {
     const itemsHtml = box.items.map((item, idx) => `
       <div class="box-item-row">
-        <span title="${esc(item.pn && item.pn !== 'NO APLICA' ? item.name + ' · ' + item.pn : item.name)}">${esc(item.name)}${item.categoria ? ` <i class="cat-chip" title="${esc(item.categoria)}">🏷</i>` : ''}</span>
-        <div class="sub-controls">
-          <span class="qty">${item.qty} pcs</span>
-          <input type="number" id="sub-qty-${esc(box.id)}-${idx}" class="sub-input" value="1" min="1" max="${item.qty}">
-          <button class="btn-sub" onclick="Rack3D.salida('${escJs(box.id)}','${escJs(item.name)}',${idx})" title="Registrar salida">-</button>
-          <button class="btn-cat" onclick="Rack3D.clasificar('${escJs(box.id)}','${escJs(item.name)}')" title="Clasificar / cambiar categoría">🏷</button>
+        <div class="item-row-top">
+          <span title="${esc(item.pn && item.pn !== 'NO APLICA' ? item.name + ' · ' + item.pn : item.name)}">${esc(item.name)}</span>
+          <div class="sub-controls">
+            <span class="qty">${item.qty} pcs</span>
+            <input type="number" id="sub-qty-${esc(box.id)}-${idx}" class="sub-input" value="1" min="1" max="${item.qty}">
+            <button class="btn-sub" onclick="Rack3D.salida('${escJs(box.id)}','${escJs(item.name)}',${idx})" title="Registrar salida">-</button>
+          </div>
         </div>
+        <select class="cat-select" onchange="Rack3D.cambiarCategoriaItem('${escJs(box.id)}','${escJs(item.name)}', this.value)" title="Categoría del material">
+          ${catOptions(item.categoria || '')}
+        </select>
       </div>`).join('');
 
     const btnDel = esAdmin()
@@ -863,7 +873,12 @@
         <input type="number" id="input-qty-${esc(box.id)}" placeholder="Cant" value="1" min="1" style="width:44px;">
         <button class="btn-add" onclick="Rack3D.entrada('${escJs(box.id)}')" title="Registrar entrada">+</button>
       </div>
-      <p style="font-size:11.5px;color:#94a3b8;margin:4px 0 0;">Para asignar categoría o espacio usa el formulario de <b>Registrar Entrada</b>.</p>
+      <div class="tamano-row add-cat-row">
+        <span class="tamano-label">Categoría</span>
+        <select id="input-cat-${esc(box.id)}" class="estado-select cat-select-new" title="Categoría del material (opcional)">
+          ${catOptions('')}
+        </select>
+      </div>
       <div class="card-foot">
         <button class="btn-mini" onclick="Rack3D.abrirEntrada('${escJs(box.id)}')">Formulario entrada</button>
         ${btnDel}
@@ -1102,19 +1117,20 @@
     const nameInput = document.getElementById(`input-name-${ubicacion}`);
     const pnInput = document.getElementById(`input-pn-${ubicacion}`);
     const qtyInput = document.getElementById(`input-qty-${ubicacion}`);
+    const catInput = document.getElementById(`input-cat-${ubicacion}`);
     if (!nameInput) return;
 
     const nombre = nameInput.value.trim();
     const pn = (pnInput?.value || "").trim() || "NO APLICA";
     const cantidad = parseInt(qtyInput.value) || 0;
+    const categoria = catInput?.value || "";
 
     if (!nombre) { alert("Escribe el nombre del componente"); return; }
     if (cantidad <= 0) { alert("Cantidad inválida"); return; }
 
     if (typeof window.entradaRapida !== "function") { alert("Sistema no disponible"); return; }
 
-    // La categoría y el espacio se asignan desde Registrar Entrada.
-    const ok = await window.entradaRapida(ubicacion, nombre, pn, cantidad, "Registrado desde vista 3D", "", 0);
+    const ok = await window.entradaRapida(ubicacion, nombre, pn, cantidad, "Registrado desde vista 3D", categoria, 0);
     if (ok) await window.renderRacksPage();
   }
 
@@ -1128,24 +1144,12 @@
     if (ok) await window.renderRacksPage();
   }
 
-  /* Clasificar o cambiar la categoría de un material ya registrado,
-     directamente desde la caja abierta en el visor 3D. */
-  async function clasificar(ubicacion, nombre) {
+  /* Cambiar la categoría de un material ya registrado, directamente desde
+     el selector que aparece junto a cada componente en la caja abierta
+     dentro del visor 3D (indirecto, en SAP, validación de Scrap, etc.). */
+  async function cambiarCategoriaItem(ubicacion, nombre, categoria) {
     if (typeof window.setCategoriaMaterial !== "function") { alert("Sistema no disponible"); return; }
-
-    const cats = window.CATEGORIAS_MATERIAL || [];
-    const listado = cats.map((c, i) => `${i + 1}. ${c}`).join("\n");
-    const respuesta = prompt(
-      `Categoría para "${nombre}":\n0. Sin categoría\n${listado}\n\nEscribe el número de la opción:`
-    );
-    if (respuesta === null) return;
-
-    const n = parseInt(respuesta);
-    let categoria = "";
-    if (!isNaN(n) && n >= 1 && n <= cats.length) categoria = cats[n - 1];
-    else if (n !== 0) { alert("Opción inválida"); return; }
-
-    const ok = await window.setCategoriaMaterial(ubicacion, nombre, categoria);
+    const ok = await window.setCategoriaMaterial(ubicacion, nombre, categoria || "");
     if (ok) await window.renderRacksPage();
   }
 
@@ -1541,7 +1545,7 @@
 
     entrada,
     salida,
-    clasificar,
+    cambiarCategoriaItem,
     cambiarEstado,
     cambiarTamano,
     buscarMaterial,
