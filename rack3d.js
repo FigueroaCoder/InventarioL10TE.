@@ -805,7 +805,6 @@
           <span class="qty">${item.qty} pcs</span>
           <input type="number" id="sub-qty-${esc(box.id)}-${idx}" class="sub-input" value="1" min="1" max="${item.qty}">
           <button class="btn-sub" onclick="Rack3D.salida('${escJs(box.id)}','${escJs(item.name)}',${idx})" title="Registrar salida">-</button>
-          <button class="btn-move" onclick="Rack3D.moverMaterial('${escJs(box.id)}','${escJs(item.name)}',${item.qty})" title="Mover este material a otra caja">↔</button>
           <button class="btn-cat" onclick="Rack3D.clasificar('${escJs(box.id)}','${escJs(item.name)}')" title="Clasificar / cambiar categoría">🏷</button>
         </div>
       </div>`).join('');
@@ -826,9 +825,6 @@
            <div class="espacio-bar"><div class="espacio-fill" style="width:${Math.min(100, (espacioUsado/box.capacidad)*100)}%; background:${espacioUsado > box.capacidad ? '#ef4444' : '#4ade80'}"></div></div>
          </div>`
       : "";
-
-    const catOptions = (window.CATEGORIAS_MATERIAL || [])
-      .map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
 
     return `
       <div class="box-card-header">
@@ -867,13 +863,7 @@
         <input type="number" id="input-qty-${esc(box.id)}" placeholder="Cant" value="1" min="1" style="width:44px;">
         <button class="btn-add" onclick="Rack3D.entrada('${escJs(box.id)}')" title="Registrar entrada">+</button>
       </div>
-      <div class="add-product-form" style="margin-top:4px;">
-        <select id="input-cat-${esc(box.id)}" class="cat-select" title="Categoría del material (opcional)">
-          <option value="">Sin categoría</option>
-          ${catOptions}
-        </select>
-        <input type="number" id="input-espacio-${esc(box.id)}" placeholder="Espacio" min="0" style="width:60px;" title="Espacio que ocupa esta cantidad (opcional)">
-      </div>
+      <p style="font-size:11.5px;color:#94a3b8;margin:4px 0 0;">Para asignar categoría o espacio usa el formulario de <b>Registrar Entrada</b>.</p>
       <div class="card-foot">
         <button class="btn-mini" onclick="Rack3D.abrirEntrada('${escJs(box.id)}')">Formulario entrada</button>
         ${btnDel}
@@ -1112,22 +1102,19 @@
     const nameInput = document.getElementById(`input-name-${ubicacion}`);
     const pnInput = document.getElementById(`input-pn-${ubicacion}`);
     const qtyInput = document.getElementById(`input-qty-${ubicacion}`);
-    const catInput = document.getElementById(`input-cat-${ubicacion}`);
-    const espacioInput = document.getElementById(`input-espacio-${ubicacion}`);
     if (!nameInput) return;
 
     const nombre = nameInput.value.trim();
     const pn = (pnInput?.value || "").trim() || "NO APLICA";
     const cantidad = parseInt(qtyInput.value) || 0;
-    const categoria = catInput?.value || "";
-    const espacio = parseFloat(espacioInput?.value) || 0;
 
     if (!nombre) { alert("Escribe el nombre del componente"); return; }
     if (cantidad <= 0) { alert("Cantidad inválida"); return; }
 
     if (typeof window.entradaRapida !== "function") { alert("Sistema no disponible"); return; }
 
-    const ok = await window.entradaRapida(ubicacion, nombre, pn, cantidad, "Registrado desde vista 3D", categoria, espacio);
+    // La categoría y el espacio se asignan desde Registrar Entrada.
+    const ok = await window.entradaRapida(ubicacion, nombre, pn, cantidad, "Registrado desde vista 3D", "", 0);
     if (ok) await window.renderRacksPage();
   }
 
@@ -1138,29 +1125,6 @@
     if (typeof window.salidaRapida !== "function") { alert("Sistema no disponible"); return; }
 
     const ok = await window.salidaRapida(ubicacion, nombre, cantidad, "Salida desde vista 3D");
-    if (ok) await window.renderRacksPage();
-  }
-
-  /* Cambiar un material de una caja a otra, directamente desde la
-     caja abierta en el visor 3D. Pide la caja destino (RACK-NIVEL-SLOT-CAJA)
-     y la cantidad; usa la misma lógica y el mismo historial que la
-     sección "Movimientos". */
-  async function moverMaterial(ubicacion, nombre, disponible) {
-    if (typeof window.moverMaterialEntreCajas !== "function") { alert("Sistema no disponible"); return; }
-
-    const destino = prompt(
-      `Mover "${nombre}" a qué caja?\nFormato: RACK-NIVEL-SLOT-CAJA (ej. A-01-01-02)`
-    );
-    if (destino === null || !destino.trim()) return;
-
-    const cantidadTxt = prompt(`Cantidad a mover (disponible: ${disponible}):`, String(disponible));
-    if (cantidadTxt === null) return;
-    const cantidad = parseInt(cantidadTxt);
-    if (isNaN(cantidad) || cantidad <= 0) { alert("Cantidad inválida"); return; }
-
-    const ok = await window.moverMaterialEntreCajas(
-      ubicacion, nombre, destino.trim().toUpperCase(), cantidad, "Movido desde vista 3D"
-    );
     if (ok) await window.renderRacksPage();
   }
 
@@ -1577,7 +1541,6 @@
 
     entrada,
     salida,
-    moverMaterial,
     clasificar,
     cambiarEstado,
     cambiarTamano,
