@@ -52,6 +52,8 @@ onkeyup="filtrarHistorial()"
 <option value="todos">Todos</option>
 <option value="ENTRADA">Solo Entradas</option>
 <option value="SALIDA">Solo Salidas</option>
+<option value="ACTUALIZACION">Solo Actualizaciones</option>
+<option value="ELIMINACION MATERIAL">Solo Eliminaciones de material</option>
 <option value="MOVIMIENTO MATERIAL">Solo Movimiento de material</option>
 <option value="ENVIO TOOL CRIB">Solo Envíos a Tool Crib</option>
 <option value="REGRESO TOOL CRIB">Solo Regresos de Tool Crib</option>
@@ -76,6 +78,7 @@ onkeyup="filtrarHistorial()"
 <th>Cantidad</th>
 <th>Responsable</th>
 <th>Comentarios</th>
+<th>Acciones</th>
 </tr>
 </thead>
 
@@ -181,6 +184,7 @@ let headers = tabla.querySelectorAll("thead th");
 let headRow = [];
 
 headers.forEach(h=>{
+if(h.innerText.trim().toLowerCase() === "acciones") return;
 headRow.push(h.innerText.replace(/,/g," "));
 });
 
@@ -195,7 +199,8 @@ if(fila.style.display === "none") return;
 let cols = fila.querySelectorAll("td");
 let row = [];
 
-cols.forEach(col=>{
+cols.forEach((col, i)=>{
+if(i === cols.length - 1 && cols.length > 1) return; // omite columna "Acciones"
 row.push(col.innerText.replace(/,/g," "));
 });
 
