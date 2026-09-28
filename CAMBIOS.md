@@ -292,3 +292,34 @@ Arrastrar gira la cámara; la rueda hace zoom.
   grande) ya vivían en esa misma tarjeta y se mantienen igual — ahora las
   tres asignaciones (status, tamaño y categoría) se hacen sin salir del
   slot/caja dentro del 3D.
+
+---
+
+## Actualización 11 — Tiempo real y avisos flotantes
+
+- **Todo se refleja al instante para todos los usuarios conectados.** `app.js`
+  ahora escucha en vivo (Firestore `onSnapshot`) las colecciones `cajas`,
+  `racks`, `toolcrib` y `scrap`. Cuando alguien registra, mueve, elimina o
+  actualiza algo, las pantallas abiertas de los demás se actualizan solas, sin
+  recargar: Inventario, Racks y visor 3D, Tool Crib, Scrap, Categorías y las
+  listas desplegables de Movimientos. La página de Historial también se
+  actualiza sola.
+- **Aviso flotante discreto (esquina inferior derecha).** Cada vez que alguien
+  hace una entrada, salida, movimiento de material o de caja, envío/regreso de
+  Tool Crib, envío a Scrap, eliminación o actualización, aparece una tarjeta
+  pequeña que dice **quién lo hizo y qué hizo** (ej. "Roberto Figueroa
+  registró una entrada — 10 × Resistor — R1-01-02-03"). Dura unos segundos, se
+  cierra con un clic y se apilan máximo 4. Quien hizo la acción ve "Tú".
+- **Sin interrumpir a nadie:** si alguien está escribiendo en una tarjeta del
+  visor 3D, el visor espera a que termine antes de refrescarse para no borrarle
+  lo que escribe. Las listas de Movimientos conservan lo que ya estaba
+  seleccionado.
+- Cada movimiento del historial ahora guarda además `ts` (hora exacta) y `sid`
+  (identificador de la sesión). Los movimientos anteriores siguen funcionando
+  igual; solo no generan aviso porque son viejos.
+- Ajustes de constantes al inicio del bloque "TIEMPO REAL" de `app.js`:
+  `TR_TOAST_MS` (duración del aviso) y `TR_TOAST_MAX` (cuántos a la vez).
+- **Reglas de Firestore:** los avisos consultan `historial` filtrando por `ts`;
+  con las reglas actuales de lectura no hay que cambiar nada.
+
+Archivos modificados: `app.js`, `movimientos.html`, `CAMBIOS.md`.
