@@ -171,10 +171,10 @@ window.registerEntry = async function(){
   const slot = document.getElementById("slotSelect")?.value;
   const ubicacion = document.getElementById("cajaSelect")?.value;
 
-  let nombre = document.getElementById("nombre").value.trim();
-  let pn = document.getElementById("pn").value.trim() || "NO APLICA";
+  let nombre = document.getElementById("nombre").value.trim().toUpperCase();
+  let pn = document.getElementById("pn").value.trim().toUpperCase();
   let cantidad = parseInt(document.getElementById("cantidad").value);
-  let comentarios = document.getElementById("comentarios").value || "NO APLICA";
+  let comentarios = (document.getElementById("comentarios").value.trim() || "NO APLICA").toUpperCase();
   let categoria = document.getElementById("categoria")?.value || "";
   let espacio = parseFloat(document.getElementById("espacio")?.value);
   if(isNaN(espacio)) espacio = 0;
@@ -187,6 +187,12 @@ window.registerEntry = async function(){
   if(!nombre || isNaN(cantidad) || cantidad <= 0){
     alert("Datos inválidos");
     return;
+  }
+
+  // Si no se escribió PN y el material ya existe en cualquier caja, hereda su PN
+  if(!pn){
+    const match = window.getMaterialesCatalogo().find(m => String(m.nombre).toLowerCase() === nombre.toLowerCase());
+    pn = (match && match.pn && match.pn !== "NO APLICA") ? String(match.pn).toUpperCase() : "NO APLICA";
   }
 
   try{
@@ -204,6 +210,7 @@ window.registerEntry = async function(){
     const idx = componentes.findIndex(c => c.nombre.toLowerCase() === nombre.toLowerCase());
 
     if(idx >= 0){
+      componentes[idx].nombre = nombre;
       componentes[idx].cantidad = (componentes[idx].cantidad || 0) + cantidad;
       componentes[idx].pn = pn || componentes[idx].pn;
       componentes[idx].comentarios = comentarios;
@@ -252,6 +259,56 @@ window.registerEntry = async function(){
 INVENTARIO (STOCK)
 ===================== */
 
+/* Inventario agrupado por MATERIAL: si el mismo material está en varias
+   cajas, se muestra en UNA sola fila con la cantidad total sumada y, en la
+   columna de caja, el detalle de cuánto hay en cada una. */
+
+function invClave(nombre){
+  return String(nombre || "").trim().replace(/\s+/g," ").toUpperCase();
+}
+
+/* escapa un texto para usarlo dentro de onclick="fn('...')" */
+function invJsq(t){
+  return String(t ?? "").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g,"&quot;");
+}
+
+function agruparInventario(){
+
+  const grupos = new Map();
+
+  cacheCajas.forEach(c => {
+    (c.componentes || []).forEach(comp => {
+
+      const clave = invClave(comp.nombre);
+      if(!clave) return;
+
+      if(!grupos.has(clave)){
+        grupos.set(clave, { nombre: clave, total: 0, cajas: [], pns: new Set(), resp: new Set(), coms: new Set() });
+      }
+
+      const g = grupos.get(clave);
+      const cant = Number(comp.cantidad) || 0;
+
+      g.total += cant;
+      g.cajas.push({ ubicacion: c.ubicacion, cantidad: cant, nombreOriginal: comp.nombre });
+
+      const pn = String(comp.pn || "").trim().toUpperCase();
+      if(pn && pn !== "NO APLICA") g.pns.add(pn);
+
+      const r = String(comp.responsable || "").trim();
+      if(r) g.resp.add(r);
+
+      const com = String(comp.comentarios || "").trim().toUpperCase();
+      if(com && com !== "NO APLICA") g.coms.add(com);
+    });
+  });
+
+  const lista = Array.from(grupos.values());
+  lista.forEach(g => g.cajas.sort((x,y) => String(x.ubicacion).localeCompare(String(y.ubicacion))));
+  lista.sort((x,y) => x.nombre.localeCompare(y.nombre));
+  return lista;
+}
+
 let cargandoStock = false;
 
 window.showStock = async function(force){
@@ -265,30 +322,40 @@ window.showStock = async function(force){
     return;
   }
 
-  tabla.innerHTML = "";
-
   try{
 
     await loadCajas(force);
-    const filas = filasPlanas();
+    const grupos = agruparInventario();
 
     let html = "";
 
-    filas.forEach(p=>{
-      const nombreEsc = (p.nombre||"").replace(/'/g,"\\'");
+    grupos.forEach(g=>{
+
+      const cajasTd = g.cajas.map(x =>
+        `<div>${trEscape(x.ubicacion)} <span style="color:var(--ink-muted);font-weight:600;">× ${x.cantidad}</span></div>`
+      ).join("");
+
       const accionesTd = isAdmin()
-        ? `<button style="padding:6px 10px;font-size:0.8rem;margin-right:6px;" title="Editar material" onclick="editarMaterial('${p.ubicacion}','${nombreEsc}')">✏ Editar</button>
-           <button class="btn-danger" title="Eliminar material" onclick="eliminarMaterial('${p.ubicacion}','${nombreEsc}')">🗑 Eliminar</button>`
+        ? g.cajas.map(x => `
+<div style="display:flex;align-items:center;justify-content:center;gap:6px;margin:2px 0;">
+<span style="font-size:0.72rem;color:var(--ink-muted);min-width:78px;text-align:right;">${trEscape(x.ubicacion)}</span>
+<button style="padding:4px 9px;font-size:0.75rem;" title="Editar en la caja ${trEscape(x.ubicacion)}" onclick="editarMaterial('${invJsq(x.ubicacion)}','${invJsq(x.nombreOriginal)}')">✏</button>
+<button class="btn-danger" style="padding:4px 9px;font-size:0.75rem;" title="Eliminar de la caja ${trEscape(x.ubicacion)}" onclick="eliminarMaterial('${invJsq(x.ubicacion)}','${invJsq(x.nombreOriginal)}')">🗑</button>
+</div>`).join("")
         : `<span style="color:var(--ink-soft);">—</span>`;
+
+      const pn = g.pns.size ? Array.from(g.pns).map(trEscape).join("<br>") : "NO APLICA";
+      const resp = Array.from(g.resp).map(trEscape).join("<br>");
+      const coms = g.coms.size ? Array.from(g.coms).map(trEscape).join("<br>") : "NO APLICA";
 
       html += `
 <tr>
-<td>${p.ubicacion || ""}</td>
-<td>${p.nombre || ""}</td>
-<td>${p.pn || ""}</td>
-<td>${p.cantidad || 0}</td>
-<td>${p.responsable || ""}</td>
-<td>${p.comentarios || ""}</td>
+<td>${cajasTd}</td>
+<td>${trEscape(g.nombre)}</td>
+<td>${pn}</td>
+<td><b>${g.total}</b></td>
+<td>${resp}</td>
+<td>${coms}</td>
 <td>${accionesTd}</td>
 </tr>`;
     });
@@ -1001,8 +1068,8 @@ window.editarMaterial = async function(ubicacion, nombreMaterial){
     if(comentariosTxt !== (actual.comentarios || "")) cambios.push("comentarios actualizados");
 
     componentes[idx].cantidad = nuevaCantidad;
-    componentes[idx].pn = pnTxt.trim() || "NO APLICA";
-    componentes[idx].comentarios = comentariosTxt;
+    componentes[idx].pn = (pnTxt.trim() || "NO APLICA").toUpperCase();
+    componentes[idx].comentarios = comentariosTxt.toUpperCase();
 
     await updateDoc(cajaRef, { componentes });
 
@@ -1134,10 +1201,10 @@ que las páginas de Entrada y Salida.
 
 window.entradaRapida = async function(ubicacion, nombre, pn, cantidad, comentarios, categoria, espacio){
 
-  nombre = String(nombre || "").trim();
-  pn = String(pn || "").trim();
+  nombre = String(nombre || "").trim().toUpperCase();
+  pn = String(pn || "").trim().toUpperCase();
   cantidad = parseInt(cantidad);
-  comentarios = comentarios || "NO APLICA";
+  comentarios = String(comentarios || "NO APLICA").toUpperCase();
   categoria = categoria || "";
   espacio = parseFloat(espacio);
   if(isNaN(espacio)) espacio = 0;
@@ -1153,7 +1220,7 @@ window.entradaRapida = async function(ubicacion, nombre, pn, cantidad, comentari
   if(!pn){
     const catalogo = window.getMaterialesCatalogo();
     const match = catalogo.find(m => m.nombre.toLowerCase() === nombre.toLowerCase());
-    pn = (match && match.pn && match.pn !== "NO APLICA") ? match.pn : "NO APLICA";
+    pn = (match && match.pn && match.pn !== "NO APLICA") ? String(match.pn).toUpperCase() : "NO APLICA";
   }
 
   try{
@@ -1170,6 +1237,7 @@ window.entradaRapida = async function(ubicacion, nombre, pn, cantidad, comentari
     const idx = componentes.findIndex(c => String(c.nombre).toLowerCase() === nombre.toLowerCase());
 
     if(idx >= 0){
+      componentes[idx].nombre = nombre;
       componentes[idx].cantidad = (componentes[idx].cantidad || 0) + cantidad;
       componentes[idx].pn = (pn !== "NO APLICA") ? pn : componentes[idx].pn;
       componentes[idx].comentarios = comentarios;
@@ -2657,4 +2725,57 @@ function trIniciar(){
   const t = setInterval(() => {
     if(window.currentUser){ clearInterval(t); trIniciar(); }
   }, 200);
+})();
+
+/* =====================================================
+   SOLO MAYÚSCULAS AL ESCRIBIR (en todas las secciones)
+   -----------------------------------------------------
+   Todo campo de texto y comentarios se convierte a mayúsculas
+   mientras se escribe. No afecta correo, contraseña, números,
+   fechas ni campos de solo lectura. Un campo puede quedar
+   excluido agregándole el atributo data-no-upper.
+   ===================================================== */
+
+(function soloMayusculas(){
+
+  const TIPOS_TEXTO = ["", "text", "search", "tel"];
+
+  function aplica(el){
+    if(!el || el.readOnly || el.disabled) return false;
+    if(el.hasAttribute && el.hasAttribute("data-no-upper")) return false;
+    if(el.tagName === "TEXTAREA") return true;
+    if(el.tagName !== "INPUT") return false;
+    return TIPOS_TEXTO.includes((el.getAttribute("type") || "").toLowerCase());
+  }
+
+  function forzar(el){
+    const v = el.value;
+    const up = v.toUpperCase();
+    if(v === up) return;
+    let ini = null, fin = null;
+    try{ ini = el.selectionStart; fin = el.selectionEnd; }catch(e){}
+    el.value = up;
+    try{ if(ini !== null) el.setSelectionRange(ini, fin); }catch(e){}
+  }
+
+  // fase de captura: corre antes que los oninput/onkeyup de cada campo,
+  // así los buscadores en vivo ya reciben el texto en mayúsculas
+  document.addEventListener("input", e => {
+    if(e.isComposing) return;
+    if(aplica(e.target)) forzar(e.target);
+  }, true);
+
+  document.addEventListener("change", e => {
+    if(aplica(e.target)) forzar(e.target);
+  }, true);
+
+  // aspecto visual (los textos de ayuda se quedan normales)
+  const st = document.createElement("style");
+  st.id = "estiloMayusculas";
+  st.textContent = `
+input:not([type]), input[type="text"], input[type="search"], input[type="tel"], textarea{ text-transform:uppercase; }
+input::placeholder, textarea::placeholder{ text-transform:none; }
+`;
+  document.head.appendChild(st);
+
 })();
