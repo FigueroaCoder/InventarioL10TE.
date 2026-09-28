@@ -713,8 +713,10 @@ async function cargarSelectScrapTool(){
   if(typeof window.getToolCribCatalogo !== "function") return;
   const lista = await window.getToolCribCatalogo();
   const sel = document.getElementById("scrapToolMaterial");
+  const valorActual = sel.value;
   sel.innerHTML = `<option value="">Selecciona un material...</option>` +
     lista.map(m => `<option value="${m.nombre}" data-cantidad="${m.cantidad}" data-pn="${m.pn||''}">${m.nombre} (${m.cantidad} pcs)</option>`).join("");
+  if(valorActual) sel.value = valorActual;
 }
 
 function seleccionarMaterialScrapTool(){
