@@ -59,10 +59,10 @@ style="margin-top:10px;"
 
 <thead>
 <tr>
-<th>Caja / Ubicación</th>
+<th>Cajas / Ubicación</th>
 <th>Componente</th>
 <th>PN</th>
-<th>Cantidad</th>
+<th>Cantidad total</th>
 <th>Responsable</th>
 <th>Comentarios</th>
 <th>Acciones</th>
@@ -149,7 +149,7 @@ let row = [];
 
 cols.forEach((col, i)=>{
 if(i === cols.length - 1 && cols.length > 1) return; // omite columna "Acciones"
-row.push(col.innerText.replace(/,/g," "));
+row.push(col.innerText.replace(/\s*\n\s*/g," | ").replace(/,/g," "));
 });
 
 if(row.length > 0){
