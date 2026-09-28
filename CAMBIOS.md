@@ -323,3 +323,26 @@ Arrastrar gira la cámara; la rueda hace zoom.
   con las reglas actuales de lectura no hay que cambiar nada.
 
 Archivos modificados: `app.js`, `movimientos.html`, `CAMBIOS.md`.
+
+---
+
+## Actualización 12 — Inventario sumado por material y solo mayúsculas
+
+- **Inventario por cantidades totales:** si el mismo material está en varias
+  cajas (aunque sea con mayúsculas/minúsculas distintas), aparece en **una sola
+  fila** con la cantidad **total sumada**. La columna *Cajas / Ubicación* sigue
+  mostrando en qué cajas está y cuánto hay en cada una (ej. `A-03-01-04 × 55`).
+  Los materiales que ya estaban registrados se suman automáticamente en la
+  vista, sin tocar los datos guardados.
+- **Acciones por caja:** el administrador edita o elimina el material caja por
+  caja (✏ / 🗑 con el número de caja al lado).
+- **Registro nuevo:** si el material ya existe en la misma caja, se suma; si no
+  se escribe PN y el material ya existe en otra caja, hereda su PN.
+- **Solo mayúsculas:** todos los campos de texto y comentarios (incluidos los
+  del visor 3D y los buscadores) convierten lo escrito a mayúsculas. No afecta
+  correo, contraseña, números ni campos de solo lectura. Lo que se guarda
+  (material, PN, comentarios) también queda en mayúsculas, incluso lo capturado
+  en ventanas emergentes de edición.
+- Exportar a Excel ahora escribe las cajas de cada material separadas por " | ".
+
+Archivos modificados: `app.js`, `stock.html`, `CAMBIOS.md`.
