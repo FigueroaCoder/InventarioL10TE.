@@ -1,6 +1,6 @@
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
 import {
-  getFirestore, collection, addDoc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, doc, query, where
+  getFirestore, collection, addDoc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
 
 /* =====================
@@ -34,6 +34,10 @@ window.CATEGORIAS_MATERIAL = [
 /* =====================
 UTIL
 ===================== */
+
+/* identifica esta pestaña/sesión: sirve para que la notificación diga "Tú"
+   solo en quien hizo el movimiento y muestre el nombre en los demás */
+const SESION_ID = Math.random().toString(36).slice(2) + Date.now().toString(36);
 
 function getUser(){
   return window.currentUser?.email || "DESCONOCIDO";
@@ -219,6 +223,8 @@ window.registerEntry = async function(){
 
     // 🔥 HISTORIAL
     await addDoc(collection(db,"historial"),{
+      ts: Date.now(),
+      sid: SESION_ID,
       fecha: new Date().toLocaleString(),
       accion: "ENTRADA",
       ubicacion,
@@ -367,6 +373,8 @@ window.registrarSalida = async function(){
     await updateDoc(cajaRef, { componentes });
 
     await addDoc(collection(db,"historial"),{
+      ts: Date.now(),
+      sid: SESION_ID,
       fecha: new Date().toLocaleString(),
       accion: "SALIDA",
       ubicacion,
@@ -917,6 +925,8 @@ window.eliminarMaterial = async function(ubicacion, nombreMaterial){
     await updateDoc(cajaRef, { componentes });
 
     await addDoc(collection(db,"historial"),{
+      ts: Date.now(),
+      sid: SESION_ID,
       fecha: new Date().toLocaleString(),
       accion: "ELIMINACION MATERIAL",
       ubicacion,
@@ -997,6 +1007,8 @@ window.editarMaterial = async function(ubicacion, nombreMaterial){
     await updateDoc(cajaRef, { componentes });
 
     await addDoc(collection(db,"historial"),{
+      ts: Date.now(),
+      sid: SESION_ID,
       fecha: new Date().toLocaleString(),
       accion: "ACTUALIZACION",
       ubicacion,
@@ -1171,6 +1183,8 @@ window.entradaRapida = async function(ubicacion, nombre, pn, cantidad, comentari
     await updateDoc(cajaRef, { componentes });
 
     await addDoc(collection(db,"historial"),{
+      ts: Date.now(),
+      sid: SESION_ID,
       fecha: new Date().toLocaleString(),
       accion: "ENTRADA",
       ubicacion,
@@ -1233,6 +1247,8 @@ window.salidaRapida = async function(ubicacion, nombre, cantidad, comentarios){
     await updateDoc(cajaRef, { componentes });
 
     await addDoc(collection(db,"historial"),{
+      ts: Date.now(),
+      sid: SESION_ID,
       fecha: new Date().toLocaleString(),
       accion: "SALIDA",
       ubicacion,
@@ -1813,6 +1829,8 @@ window.moverMaterialEntreCajas = async function(ubicacionOrigen, nombreMaterial,
     await updateDoc(destinoRef, { componentes: compDestino });
 
     await addDoc(collection(db,"historial"),{
+      ts: Date.now(),
+      sid: SESION_ID,
       fecha: new Date().toLocaleString(),
       accion: "MOVIMIENTO MATERIAL",
       ubicacion: `${ubicacionOrigen} → ${ubicacionDestino}`,
@@ -1973,6 +1991,8 @@ window.enviarATooCrib = async function(ubicacionOrigen, nombreMaterial, cantidad
     }
 
     await addDoc(collection(db,"historial"),{
+      ts: Date.now(),
+      sid: SESION_ID,
       fecha: new Date().toLocaleString(),
       accion: "ENVIO TOOL CRIB",
       ubicacion: ubicacionOrigen,
@@ -2086,6 +2106,8 @@ window.regresarDeToolCrib = async function(nombreMaterial, cantidad, destino){
     }
 
     await addDoc(collection(db,"historial"),{
+      ts: Date.now(),
+      sid: SESION_ID,
       fecha: new Date().toLocaleString(),
       accion: "REGRESO TOOL CRIB",
       ubicacion: ubicacionDestino,
@@ -2232,6 +2254,8 @@ window.enviarAScrap = async function(origenTipo, origenId, nombreMaterial, canti
     }
 
     await addDoc(collection(db,"historial"),{
+      ts: Date.now(),
+      sid: SESION_ID,
       fecha: new Date().toLocaleString(),
       accion: "ENVIO SCRAP",
       ubicacion: ubicacionTexto,
@@ -2342,6 +2366,8 @@ window.moverCajaUbicacion = async function(ubicacionOrigen, rackDestino, nivelDe
     const totalPiezas = (dataOrigen.componentes || []).reduce((s,x)=> s + (Number(x.cantidad)||0), 0);
 
     await addDoc(collection(db,"historial"),{
+      ts: Date.now(),
+      sid: SESION_ID,
       fecha: new Date().toLocaleString(),
       accion: "MOVIMIENTO CAJA",
       ubicacion: `${ubicacionOrigen} → ${ubicacionDestino}`,
@@ -2364,3 +2390,271 @@ window.moverCajaUbicacion = async function(ubicacionOrigen, rackDestino, nivelDe
   }
 
 };
+
+
+/* =====================================================
+   TIEMPO REAL + NOTIFICACIONES FLOTANTES
+   -----------------------------------------------------
+   - Escucha en vivo (onSnapshot) cajas, racks, Tool Crib y Scrap:
+     cualquier cambio de cualquier usuario se refleja al instante
+     en la pantalla de todos, sin recargar.
+   - Cada movimiento nuevo del historial muestra una notificación
+     discreta a la derecha: quién lo hizo y qué hizo.
+   ===================================================== */
+
+const TR_TOAST_MS = 6500;      // cuánto dura cada aviso en pantalla
+const TR_TOAST_MAX = 4;        // máximo de avisos apilados a la vez
+const TR_VENTANA_MS = 60000;   // tolerancia de reloj entre equipos
+
+const TR_ACCIONES = {
+  "ENTRADA":             { icono:"⬇️", verbo:"registró una entrada", tu:"registraste una entrada", color:"#1f9d55" },
+  "SALIDA":              { icono:"⬆️", verbo:"registró una salida", tu:"registraste una salida", color:"#ff5a1f" },
+  "MOVIMIENTO MATERIAL": { icono:"🔀", verbo:"movió material", tu:"moviste material", color:"#3b82f6" },
+  "MOVIMIENTO CAJA":     { icono:"📦", verbo:"movió una caja completa", tu:"moviste una caja completa", color:"#3b82f6" },
+  "ENVIO TOOL CRIB":     { icono:"🧰", verbo:"envió a Tool Crib", tu:"enviaste a Tool Crib", color:"#a855f7" },
+  "REGRESO TOOL CRIB":   { icono:"↩️", verbo:"regresó de Tool Crib", tu:"regresaste de Tool Crib", color:"#a855f7" },
+  "ENVIO SCRAP":         { icono:"🗑️", verbo:"envió a Scrap", tu:"enviaste a Scrap", color:"#e5484d" },
+  "ELIMINACION MATERIAL":{ icono:"❌", verbo:"eliminó material", tu:"eliminaste material", color:"#e5484d" },
+  "ACTUALIZACION":       { icono:"✏️", verbo:"actualizó un material", tu:"actualizaste un material", color:"#ffb703" }
+};
+
+function trEscape(t){
+  return String(t ?? "").replace(/[&<>"']/g, ch => (
+    { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]
+  ));
+}
+
+/* roberto.figueroa@empresa.com -> "Roberto Figueroa" */
+function trNombreBonito(email){
+  const base = String(email || "").split("@")[0] || "Alguien";
+  return base.split(/[._-]+/).filter(Boolean)
+    .map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(" ") || "Alguien";
+}
+
+function trInyectarEstilos(){
+  if(document.getElementById("trEstilos")) return;
+  const st = document.createElement("style");
+  st.id = "trEstilos";
+  st.textContent = `
+#trToasts{position:fixed;right:16px;bottom:16px;z-index:100000;display:flex;flex-direction:column;
+  gap:8px;width:300px;max-width:calc(100vw - 32px);pointer-events:none;}
+.tr-toast{pointer-events:auto;cursor:pointer;display:flex;gap:10px;align-items:flex-start;
+  background:rgba(18,21,27,.94);color:#f3f4f6;border:1px solid #2a3140;border-left:4px solid var(--c,#ff5a1f);
+  border-radius:10px;padding:9px 12px;box-shadow:0 6px 20px rgba(0,0,0,.28);
+  font:12.5px/1.35 var(--font-body,'Inter',-apple-system,Segoe UI,sans-serif);
+  animation:trIn .28s ease-out both;backdrop-filter:blur(4px);}
+.tr-toast.saliendo{animation:trOut .25s ease-in both;}
+.tr-toast .tr-ico{font-size:16px;line-height:1.2;flex:none;}
+.tr-toast .tr-quien{font-weight:700;color:#fff;}
+.tr-toast .tr-det{color:#c9ced8;word-break:break-word;}
+.tr-toast .tr-det b{color:#fff;font-weight:600;}
+.tr-toast .tr-ubi{display:block;margin-top:2px;color:#9aa1ad;font-size:11px;
+  font-family:var(--font-mono,'JetBrains Mono',Consolas,monospace);}
+@keyframes trIn{from{opacity:0;transform:translateX(24px);}to{opacity:1;transform:none;}}
+@keyframes trOut{from{opacity:1;transform:none;}to{opacity:0;transform:translateX(24px);}}
+@media (prefers-reduced-motion:reduce){.tr-toast,.tr-toast.saliendo{animation:none;}}
+@media (max-width:600px){#trToasts{right:8px;bottom:8px;}}
+`;
+  document.head.appendChild(st);
+}
+
+function trContenedor(){
+  let c = document.getElementById("trToasts");
+  if(!c){
+    trInyectarEstilos();
+    c = document.createElement("div");
+    c.id = "trToasts";
+    c.setAttribute("aria-live","polite");
+    document.body.appendChild(c);
+  }
+  return c;
+}
+
+function trCerrarToast(el){
+  if(!el || el.classList.contains("saliendo")) return;
+  el.classList.add("saliendo");
+  setTimeout(() => el.remove(), 260);
+}
+
+function trMostrarToast(mov){
+
+  if(!document.body) return;
+
+  const cfg = TR_ACCIONES[mov.accion] || { icono:"🔔", verbo:"hizo un movimiento", tu:"hiciste un movimiento", color:"#ff5a1f" };
+  const esMio = mov.sid && mov.sid === SESION_ID;
+  const quien = esMio ? "Tú" : trNombreBonito(mov.responsable);
+
+  const cant = (mov.cantidad !== undefined && mov.cantidad !== null && mov.cantidad !== "")
+    ? `<b>${trEscape(mov.cantidad)}</b> × ` : "";
+  const detalle = mov.accion === "MOVIMIENTO CAJA"
+    ? `${cant}pzs en total`
+    : `${cant}<b>${trEscape(mov.nombre || "")}</b>`;
+
+  const el = document.createElement("div");
+  el.className = "tr-toast";
+  el.style.setProperty("--c", cfg.color);
+  el.title = "Clic para cerrar";
+  el.innerHTML = `
+<span class="tr-ico">${cfg.icono}</span>
+<div>
+  <div><span class="tr-quien">${trEscape(quien)}</span> ${esMio ? (cfg.tu || cfg.verbo) : cfg.verbo}</div>
+  <div class="tr-det">${detalle}</div>
+  ${mov.ubicacion ? `<span class="tr-ubi">${trEscape(mov.ubicacion)}</span>` : ""}
+</div>`;
+
+  const cont = trContenedor();
+  cont.appendChild(el);
+
+  // limita cuántos se apilan
+  const activos = cont.querySelectorAll(".tr-toast:not(.saliendo)");
+  if(activos.length > TR_TOAST_MAX) trCerrarToast(activos[0]);
+
+  el.addEventListener("click", () => trCerrarToast(el));
+  setTimeout(() => trCerrarToast(el), TR_TOAST_MS);
+}
+
+/* ---------- refresco de las vistas abiertas ---------- */
+
+let trTimer = null;
+let trTimerRacks = null;
+
+function trEditando(){
+  const a = document.activeElement;
+  return !!a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName);
+}
+
+function trProgramarRefresco(){
+  clearTimeout(trTimer);
+  trTimer = setTimeout(trRefrescarVistas, 250);
+}
+
+async function trRefrescarVistas(){
+
+  try{
+
+    // Inventario
+    if(document.getElementById("tabla") && typeof window.showStock === "function"
+       && /stock\.html$/i.test(location.pathname)){
+      await window.showStock(false);
+      const buscador = document.getElementById("valor");
+      if(buscador && buscador.value && typeof window.liveSearch === "function") window.liveSearch();
+    }
+
+    // Tool Crib / Scrap (tablas y listas desplegables de Movimientos)
+    if(typeof window.renderToolCrib === "function") await window.renderToolCrib(false);
+    if(typeof window.renderScrap === "function") await window.renderScrap(false);
+    if(typeof window.cargarSelectRegreso === "function" && document.getElementById("regresoMaterial")){
+      await window.cargarSelectRegreso();
+    }
+    if(typeof window.cargarSelectScrapTool === "function" && document.getElementById("scrapToolMaterial")){
+      await window.cargarSelectScrapTool();
+    }
+
+    // Categorías
+    if(typeof window.filtrarCategorias === "function" && document.getElementById("catBuscar")){
+      await window.filtrarCategorias();
+    }
+
+    // Racks y visor 3D
+    trRefrescarRacks();
+
+  }catch(e){
+    console.error("Error refrescando vistas en tiempo real:", e);
+  }
+}
+
+/* El visor 3D se reconstruye, así que si alguien está escribiendo en una
+   tarjeta (cantidad, comentarios…) espera a que termine para no borrarle
+   lo que escribe. */
+function trRefrescarRacks(){
+
+  if(!document.getElementById("tablaRacks") || typeof window.renderRacksPage !== "function") return;
+
+  clearTimeout(trTimerRacks);
+
+  if(trEditando()){
+    trTimerRacks = setTimeout(trRefrescarRacks, 1500);
+    return;
+  }
+
+  window.renderRacksPage();
+}
+
+/* ---------- listeners en vivo ---------- */
+
+let trIniciado = false;
+
+function trEscuchar(nombre, alRecibir){
+  let primera = true;
+  return onSnapshot(collection(db, nombre), snap => {
+    alRecibir(snap);
+    if(primera){ primera = false; return; }   // la carga inicial ya la pinta cada página
+    trProgramarRefresco();
+  }, err => console.error("Tiempo real (" + nombre + "):", err));
+}
+
+function trIniciar(){
+
+  if(trIniciado) return;
+  trIniciado = true;
+
+  trEscuchar("cajas", snap => {
+    cacheCajas = snap.docs.map(d => ({ idDoc:d.id, ...d.data() }));
+  });
+
+  trEscuchar("racks", snap => {
+    cacheRacks = snap.docs.map(d => ({ idDoc:d.id, ...d.data() }));
+    cacheRacks.sort((a,b) => String(a.nombre).localeCompare(String(b.nombre)));
+  });
+
+  trEscuchar("toolcrib", snap => {
+    cacheToolCrib = snap.docs.map(d => ({ idDoc:d.id, ...d.data() }));
+    cacheToolCrib.sort((a,b) => String(a.nombre).localeCompare(String(b.nombre)));
+  });
+
+  trEscuchar("scrap", snap => {
+    cacheScrap = snap.docs.map(d => ({ idDoc:d.id, ...d.data() }));
+    cacheScrap.sort((a,b) => String(a.nombre).localeCompare(String(b.nombre)));
+  });
+
+  /* Avisos: solo movimientos recientes (no baja todo el historial).
+     La primera respuesta se ignora: son movimientos que ya existían. */
+  let primeraAvisos = true;
+  const desde = Date.now() - TR_VENTANA_MS;
+
+  onSnapshot(query(collection(db,"historial"), where("ts", ">=", desde)), snap => {
+
+    if(primeraAvisos){ primeraAvisos = false; return; }
+
+    snap.docChanges().forEach(ch => {
+      if(ch.type !== "added") return;
+      const mov = ch.doc.data();
+      if(!mov || !mov.accion) return;
+      trMostrarToast(mov);
+    });
+
+  }, err => console.error("Tiempo real (avisos):", err));
+
+  /* Página de Historial: la tabla se actualiza sola */
+  if(document.getElementById("tablaHistorial")){
+    onSnapshot(collection(db,"historial"), snap => {
+      historialCache = snap.docs.map(d => ({ idDoc:d.id, ...d.data() }));
+      historialCache.sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+
+      if(document.getElementById("valor") && document.getElementById("tipoFiltro")
+         && typeof window.filterHistory === "function"){
+        window.filterHistory();
+      } else {
+        renderHistorial(historialCache);
+      }
+    }, err => console.error("Tiempo real (historial):", err));
+  }
+}
+
+/* arranca en cuanto hay sesión (auth-global.js publica window.currentUser) */
+(function esperarSesionTR(){
+  if(window.currentUser){ trIniciar(); return; }
+  const t = setInterval(() => {
+    if(window.currentUser){ clearInterval(t); trIniciar(); }
+  }, 200);
+})();
