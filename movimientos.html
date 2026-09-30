@@ -291,8 +291,6 @@ material, no se puede mandar vacía: se te ofrecerá reubicar ese material resta
 </div>
 <label>Número de la caja nueva</label>
 <input id="regNuevaCaja" placeholder="Ej. 03">
-<label>Capacidad de espacio (opcional)</label>
-<input id="regNuevaCapacidad" type="number" min="0" placeholder="Unidades de espacio">
 </div>
 
 <br>
@@ -634,11 +632,9 @@ async function ejecutarRegresoToolCrib(){
   } else {
     const grupo = window.leerRackNivelSlot({ rack:"regNuevaRack", nivel:"regNuevaNivel", slot:"regNuevaSlot" });
     const caja = document.getElementById("regNuevaCaja").value;
-    const capacidadTxt = document.getElementById("regNuevaCapacidad").value;
     destino = {
       nueva: {
-        rack: grupo.rack, nivel: grupo.nivel, slot: grupo.slot, caja,
-        capacidad: capacidadTxt ? parseFloat(capacidadTxt) : null
+        rack: grupo.rack, nivel: grupo.nivel, slot: grupo.slot, caja
       }
     };
   }
@@ -649,7 +645,6 @@ async function ejecutarRegresoToolCrib(){
     document.getElementById("regresoCantidad").value = "";
     document.getElementById("regresoDisponible").style.display = "none";
     document.getElementById("regNuevaCaja").value = "";
-    document.getElementById("regNuevaCapacidad").value = "";
     await cargarSelectRegreso();
     await window.initSelectorGrupo({ rack:"regDestRack", nivel:"regDestNivel", slot:"regDestSlot", caja:"regDestCaja" });
     await window.initSelectorGrupo({ rack:"regNuevaRack", nivel:"regNuevaNivel", slot:"regNuevaSlot" });
