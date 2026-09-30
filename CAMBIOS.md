@@ -346,3 +346,9 @@ Archivos modificados: `app.js`, `movimientos.html`, `CAMBIOS.md`.
 - Exportar a Excel ahora escribe las cajas de cada material separadas por " | ".
 
 Archivos modificados: `app.js`, `stock.html`, `CAMBIOS.md`.
+
+## v8 — Historial, llenado y Registrar Entrada
+
+- **Historial**: ahora se ordena del movimiento más reciente al más viejo (por marca de tiempo `ts`; los registros viejos sin `ts` se ordenan leyendo su fecha).
+- **Espacio que ocupa / capacidad**: eliminado de Registrar Entrada, del visor 3D (barra de espacio), de la creación de cajas y del regreso desde Tool Crib. Se conservan el **tamaño de caja** (chica / mediana / grande) y el **status** (vacía / poco contenido / medio / llena).
+- **Registrar Entrada → + Nueva caja en este slot**: abre un panel para elegir número de caja (sugerido automático), tamaño y status, igual que en el 3D; al crearla queda seleccionada en el formulario.
