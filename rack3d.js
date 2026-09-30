@@ -829,13 +829,6 @@
     const optT = (k, txt) =>
       `<option value="${k}" ${box.tamano === k ? 'selected' : ''}>${txt}</option>`;
 
-    const espacioUsado = box.items.reduce((s,i) => s + (Number(i.espacio)||0), 0);
-    const espacioHtml = (box.capacidad !== null)
-      ? `<div class="espacio-row"><span>Espacio: ${espacioUsado}/${box.capacidad}</span>
-           <div class="espacio-bar"><div class="espacio-fill" style="width:${Math.min(100, (espacioUsado/box.capacidad)*100)}%; background:${espacioUsado > box.capacidad ? '#ef4444' : '#4ade80'}"></div></div>
-         </div>`
-      : "";
-
     return `
       <div class="box-card-header">
         <span class="num-caja">Caja ${esc(box.etiqueta)}</span>
@@ -858,7 +851,6 @@
           ${optT('grande', 'Grande')}
         </select>
       </div>
-      ${espacioHtml}
       <div class="box-item-list">
         ${itemsHtml || '<span style="color:#94a3b8;">Vacía</span>'}
       </div>
