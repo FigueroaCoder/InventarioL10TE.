@@ -176,8 +176,6 @@ window.registerEntry = async function(){
   let cantidad = parseInt(document.getElementById("cantidad").value);
   let comentarios = (document.getElementById("comentarios").value.trim() || "NO APLICA").toUpperCase();
   let categoria = document.getElementById("categoria")?.value || "";
-  let espacio = parseFloat(document.getElementById("espacio")?.value);
-  if(isNaN(espacio)) espacio = 0;
 
   if(!rack || !nivel || !slot || !ubicacion){
     alert("Selecciona rack, nivel, slot y caja");
@@ -215,14 +213,12 @@ window.registerEntry = async function(){
       componentes[idx].pn = pn || componentes[idx].pn;
       componentes[idx].comentarios = comentarios;
       componentes[idx].responsable = getUser();
-      componentes[idx].espacio = (componentes[idx].espacio || 0) + espacio;
       if(categoria) componentes[idx].categoria = categoria;
     } else {
       componentes.push({
         nombre, pn, cantidad, comentarios,
         responsable: getUser(),
-        categoria: categoria || "",
-        espacio
+        categoria: categoria || ""
       });
     }
 
@@ -536,6 +532,26 @@ window.resetSalidaForm = function(){
 HISTORIAL
 ===================== */
 
+/* Orden del historial: movimiento más reciente primero (usa ts; si un registro
+   viejo no lo tiene, se interpreta el texto de la fecha) */
+function tsHistorial(d){
+  if(typeof d.ts === "number") return d.ts;
+  const f = String(d.fecha || "");
+  const m = f.match(/(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s*(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([ap])?\.?\s*m?\.?/i);
+  if(m){
+    let h = parseInt(m[4],10);
+    if(m[7]){ const pm = m[7].toLowerCase()==="p"; if(pm && h<12) h+=12; if(!pm && h===12) h=0; }
+    let dd = parseInt(m[1],10), mm = parseInt(m[2],10);
+    if(mm > 12 && dd <= 12){ const t = dd; dd = mm; mm = t; }   // formato mes/día (en-US)
+    return new Date(parseInt(m[3],10), mm-1, dd, h, parseInt(m[5],10), parseInt(m[6]||"0",10)).getTime();
+  }
+  const t = new Date(f).getTime();
+  return isNaN(t) ? 0 : t;
+}
+function ordenarHistorial(arr){
+  return arr.sort((a,b) => tsHistorial(b) - tsHistorial(a));
+}
+
 window.viewHistory = async function(){
 
   const tabla = document.getElementById("tablaHistorial");
@@ -544,7 +560,7 @@ window.viewHistory = async function(){
   const snapshot = await getDocs(collection(db,"historial"));
 
   historialCache = snapshot.docs.map(d => ({ idDoc: d.id, ...d.data() }));
-  historialCache.sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+  ordenarHistorial(historialCache);
 
   renderHistorial(historialCache);
 };
@@ -829,17 +845,22 @@ window.eliminarRack = async function(nombre){
 CAJAS DENTRO DE UN SLOT (número manual)
 ===================== */
 
-window.crearCajaEnSlot = async function(rack, nivel, slot){
+window.crearCajaEnSlot = async function(rack, nivel, slot, opts){
 
   await loadCajas(true);
 
-  const sugerido = siguienteNumeroCaja();
-  const entrada = prompt(
-    `Número o etiqueta de la nueva caja para ${rack}-${pad2(nivel)}-${pad2(slot)}:\n` +
-    `(cada número de caja solo puede existir una vez en todo el almacén)`,
-    sugerido
-  );
-  if(entrada === null) return null;
+  opts = opts || {};
+  let entrada = opts.caja;
+
+  if(entrada === undefined){
+    const sugerido = siguienteNumeroCaja();
+    entrada = prompt(
+      `Número o etiqueta de la nueva caja para ${rack}-${pad2(nivel)}-${pad2(slot)}:\n` +
+      `(cada número de caja solo puede existir una vez en todo el almacén)`,
+      sugerido
+    );
+    if(entrada === null) return null;
+  }
 
   const cajaId = normCaja(entrada);
 
@@ -853,12 +874,10 @@ window.crearCajaEnSlot = async function(rack, nivel, slot){
     return null;
   }
 
-  const capacidadTxt = prompt("Capacidad de espacio de esta caja (número de unidades de espacio que tiene disponibles). Déjalo vacío si no quieres controlar su espacio:", "");
-  let capacidad = null;
-  if(capacidadTxt !== null && capacidadTxt.trim() !== ""){
-    const num = parseFloat(capacidadTxt);
-    if(!isNaN(num) && num > 0) capacidad = num;
-  }
+  const tamano = ["chica","mediana","grande"].includes(String(opts.tamano||"").toLowerCase())
+    ? String(opts.tamano).toLowerCase() : null;
+  const estado = ["vacia","bajo","medio","lleno"].includes(String(opts.estado||"").toLowerCase())
+    ? String(opts.estado).toLowerCase() : null;
 
   const ubicacion = buildUbicacion(rack, nivel, slot, cajaId);
 
@@ -874,8 +893,13 @@ window.crearCajaEnSlot = async function(rack, nivel, slot){
 
     await setDoc(cajaRef, {
       rack, nivel: parseInt(nivel), slot: parseInt(slot), caja: cajaId, ubicacion,
-      componentes: [], capacidad
+      componentes: []
     });
+    // tamaño físico y estado (llena / poco contenido...) elegidos al crearla
+    const extra = {};
+    if(tamano) extra.tamano = tamano;
+    if(estado) extra.estado = estado;
+    if(Object.keys(extra).length) await updateDoc(cajaRef, extra);
 
     await loadCajas(true);
     if(typeof window.renderRacksPage === "function") window.renderRacksPage();
@@ -894,6 +918,8 @@ window.crearCajaEnSlot = async function(rack, nivel, slot){
    Usa el rack/nivel/slot ya elegidos ahí, respeta la unicidad global del
    número de caja y, al terminar, deja la caja nueva seleccionada en el
    formulario. */
+window.siguienteNumeroCaja = function(){ return siguienteNumeroCaja(); };
+
 window.crearCajaDesdeEntrada = async function(){
 
   const rackSelect = document.getElementById("rackSelect");
@@ -910,8 +936,14 @@ window.crearCajaDesdeEntrada = async function(){
     return;
   }
 
-  const ubicacion = await window.crearCajaEnSlot(rack, nivel, slot);
+  const numero = document.getElementById("nuevaCajaNumero")?.value;
+  const tamano = document.getElementById("nuevaCajaTamano")?.value || "mediana";
+  const estado = document.getElementById("nuevaCajaEstado")?.value || "vacia";
+
+  const ubicacion = await window.crearCajaEnSlot(rack, nivel, slot, { caja: numero, tamano, estado });
   if(!ubicacion) return;
+
+  if(typeof window.cerrarPanelNuevaCaja === "function") window.cerrarPanelNuevaCaja();
 
   if(typeof window.initUbicacionSelectors === "function"){
     await window.initUbicacionSelectors();
@@ -1183,7 +1215,7 @@ window.listarOcurrenciasPorCategoria = async function(query, categoria){
       resultados.push({
         ubicacion: c.ubicacion, rack: c.rack, nivel: c.nivel, slot: c.slot, caja: c.caja || c.ubicacion,
         nombre: comp.nombre, pn: comp.pn || "NO APLICA", cantidad: comp.cantidad || 0,
-        categoria: cat, espacio: comp.espacio || 0
+        categoria: cat
       });
     });
   });
@@ -1199,15 +1231,13 @@ Usan exactamente la misma lógica y el mismo historial
 que las páginas de Entrada y Salida.
 ===================================================== */
 
-window.entradaRapida = async function(ubicacion, nombre, pn, cantidad, comentarios, categoria, espacio){
+window.entradaRapida = async function(ubicacion, nombre, pn, cantidad, comentarios, categoria){
 
   nombre = String(nombre || "").trim().toUpperCase();
   pn = String(pn || "").trim().toUpperCase();
   cantidad = parseInt(cantidad);
   comentarios = String(comentarios || "NO APLICA").toUpperCase();
   categoria = categoria || "";
-  espacio = parseFloat(espacio);
-  if(isNaN(espacio)) espacio = 0;
 
   if(!ubicacion || !nombre || isNaN(cantidad) || cantidad <= 0){
     alert("Datos inválidos");
@@ -1242,10 +1272,9 @@ window.entradaRapida = async function(ubicacion, nombre, pn, cantidad, comentari
       componentes[idx].pn = (pn !== "NO APLICA") ? pn : componentes[idx].pn;
       componentes[idx].comentarios = comentarios;
       componentes[idx].responsable = getUser();
-      componentes[idx].espacio = (componentes[idx].espacio || 0) + espacio;
       if(categoria) componentes[idx].categoria = categoria;
     } else {
-      componentes.push({ nombre, pn, cantidad, comentarios, responsable: getUser(), categoria, espacio });
+      componentes.push({ nombre, pn, cantidad, comentarios, responsable: getUser(), categoria });
     }
 
     await updateDoc(cajaRef, { componentes });
@@ -2122,7 +2151,7 @@ window.regresarDeToolCrib = async function(nombreMaterial, cantidad, destino){
     let ubicacionDestino;
 
     if(destino.nueva){
-      const { rack, nivel, slot, caja, capacidad } = destino.nueva;
+      const { rack, nivel, slot, caja } = destino.nueva;
       if(!rack || !nivel || !slot || !caja){
         alert("Completa rack, nivel, slot y número de caja del destino nuevo");
         return false;
@@ -2136,8 +2165,7 @@ window.regresarDeToolCrib = async function(nombreMaterial, cantidad, destino){
         componentes: [{
           nombre: nombreMaterial, pn: cribData.pn || "NO APLICA", cantidad,
           comentarios: "Regresado de Tool Crib", responsable: getUser()
-        }],
-        capacidad: (typeof capacidad === "number" && capacidad > 0) ? capacidad : null
+        }]
       });
 
     } else if(destino.existente){
@@ -2707,7 +2735,7 @@ function trIniciar(){
   if(document.getElementById("tablaHistorial")){
     onSnapshot(collection(db,"historial"), snap => {
       historialCache = snap.docs.map(d => ({ idDoc:d.id, ...d.data() }));
-      historialCache.sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+      ordenarHistorial(historialCache);
 
       if(document.getElementById("valor") && document.getElementById("tipoFiltro")
          && typeof window.filterHistory === "function"){
