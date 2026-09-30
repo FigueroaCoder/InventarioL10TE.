@@ -13,6 +13,12 @@ position:absolute;
 width:320px;
 z-index:100;
 }
+.panel-nueva-caja{
+margin-top:10px;
+padding:12px 14px;
+border:1px solid var(--line, rgba(128,128,128,.35));
+border-radius:10px;
+}
 .ubic-row{
 display:grid;
 grid-template-columns:1fr 1fr 1fr 1fr;
@@ -58,10 +64,33 @@ gap:12px;
 <select id="cajaSelect"><option value="">Caja</option></select>
 </div>
 
-<button type="button" style="margin-top:8px;" onclick="crearCajaDesdeEntrada()">+ Nueva caja en este slot</button>
+<button type="button" style="margin-top:8px;" id="btnNuevaCaja" onclick="togglePanelNuevaCaja()">+ Nueva caja en este slot</button>
+
+<div id="panelNuevaCaja" class="panel-nueva-caja" style="display:none;">
+<label>Número de la caja nueva</label>
+<input id="nuevaCajaNumero" placeholder="Ej. 03">
+
+<label>Tamaño de caja</label>
+<select id="nuevaCajaTamano">
+<option value="chica">Chica</option>
+<option value="mediana" selected>Mediana</option>
+<option value="grande">Grande</option>
+</select>
+
+<label>Status de la caja</label>
+<select id="nuevaCajaEstado">
+<option value="vacia" selected>Caja vacía</option>
+<option value="bajo">Caja con poco contenido</option>
+<option value="medio">Contenido medio</option>
+<option value="lleno">Caja llena</option>
+</select>
+
+<button type="button" style="margin-top:10px;" onclick="crearCajaDesdeEntrada()">Crear caja</button>
+<button type="button" style="margin-top:10px;" onclick="cerrarPanelNuevaCaja()">Cancelar</button>
+</div>
 
 <p style="font-size:12.5px;color:var(--ink-muted);margin-top:8px;">
-Un slot puede tener varias cajas. Elige rack, nivel y slot y usa "+ Nueva caja" para crear una aquí mismo, o créala en <b>Racks y Cajas</b>.
+Un slot puede tener varias cajas. Elige rack, nivel y slot y usa "+ Nueva caja" para crear una aquí mismo (número, tamaño y status), o créala en <b>Racks y Cajas</b>.
 </p>
 
 <label>Caja seleccionada</label>
@@ -96,9 +125,6 @@ oninput="this.value = this.value.replace(/[^0-9]/g,'')"
 <option value="">Sin categoría</option>
 </select>
 
-<label>Espacio que ocupa (opcional)</label>
-<input id="espacio" type="number" min="0" placeholder="Unidades de espacio que ocupa esta cantidad">
-
 <p style="font-size:12.5px;color:var(--ink-muted);margin-top:4px;">
 Una misma caja puede contener varios componentes distintos: repite este formulario con la misma ubicación para agregar más.
 </p>
@@ -115,13 +141,29 @@ Una misma caja puede contener varios componentes distintos: repite este formular
 
 <script>
 
+function togglePanelNuevaCaja(){
+  const panel = document.getElementById("panelNuevaCaja");
+  if(panel.style.display !== "none"){ cerrarPanelNuevaCaja(); return; }
+  if(!document.getElementById("rackSelect").value || !document.getElementById("nivelSelect").value || !document.getElementById("slotSelect").value){
+    alert("Selecciona rack, nivel y slot antes de crear una caja nueva");
+    return;
+  }
+  if(typeof window.siguienteNumeroCaja === "function"){
+    document.getElementById("nuevaCajaNumero").value = window.siguienteNumeroCaja();
+  }
+  panel.style.display = "block";
+}
+
+function cerrarPanelNuevaCaja(){
+  document.getElementById("panelNuevaCaja").style.display = "none";
+}
+
 function resetCampos(){
 
 document.getElementById("nombre").value = "";
 document.getElementById("pn").value = "";
 document.getElementById("cantidad").value = "";
 document.getElementById("comentarios").value = "";
-document.getElementById("espacio").value = "";
 document.getElementById("categoria").value = "";
 document.getElementById("sugerencias").innerHTML = "";
 
