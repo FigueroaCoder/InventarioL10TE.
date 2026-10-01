@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Etiquetas - L10 ALMACEN</title>
+<link rel="stylesheet" href="style.css">
+
+<style>
+body{ opacity:0; transition:opacity 0.3s ease; }
+body.loaded{ opacity:1; }
+</style>
+
+</head>
+
+<body>
+
+<div class="sidebar">
+<h2>L10 ALMACEN<span class="tag">Warehouse System</span></h2>
+<nav>
+<a href="index.html"><span class="num">01</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Inicio</a>
+<a href="entrada.html"><span class="num">02</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 20h16"/></svg>Registrar Entrada</a>
+<a href="salida.html"><span class="num">03</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="M7 14l5-5 5 5"/><path d="M4 4h16"/></svg>Registrar Salida</a>
+<a href="stock.html"><span class="num">04</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>Inventario</a>
+<a href="racks.html"><span class="num">05</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Racks y Cajas</a>
+<div class="nav-group" id="navMov"><a href="movimientos.html" class="nav-parent" id="navMovToggle" aria-expanded="false"><span class="num">06</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4M7 4l-3 3M7 4l3 3"/><path d="M17 8v12M17 20l3-3M17 20l-3-3"/></svg>Movimientos<svg class="nav-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></a><div class="nav-submenu" id="navMovSub"><a href="movimientos.html#panelMaterial" class="nav-sub" data-panel="panelMaterial"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13M14 4l4 4-4 4"/><path d="M20 16H7M10 12l-4 4 4 4"/></svg><span>Material entre cajas</span></a><a href="movimientos.html#panelCajas" class="nav-sub" data-panel="panelCajas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg><span>Mover cajas / slots</span></a><a href="movimientos.html#panelTool" class="nav-sub" data-panel="panelTool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.1L3 17.7V21h3.3l6.3-6.3a4 4 0 0 0 5.1-5.4l-2.5 2.5-2.3-.6-.6-2.3z"/></svg><span>Material a Tool Crib</span></a><a href="movimientos.html#panelScrap" class="nav-sub" data-panel="panelScrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></svg><span>Material a Scrap</span></a></div></div>
+<a href="categorias.html"><span class="num">07</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41L11 3.83A2 2 0 0 0 9.59 3.24L4 3a1 1 0 0 0-1 1l.24 5.59a2 2 0 0 0 .58 1.41l9.58 9.58a2 2 0 0 0 2.83 0l4.36-4.36a2 2 0 0 0 0-2.81z"/><circle cx="7.5" cy="7.5" r="1.2"/></svg>Categorías</a>
+<a href="historial.html"><span class="num">08</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Historial</a>
+<a href="etiquetas.html"><span class="num">09</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41L11 3.83A2 2 0 0 0 9.59 3.25H4a1 1 0 0 0-1 1v5.59A2 2 0 0 0 3.59 11.25l9.58 9.58a2 2 0 0 0 2.83 0l4.59-4.59a2 2 0 0 0 0-2.83z"/><circle cx="7.5" cy="7.5" r="1.2"/></svg>Etiquetas</a>
+</nav>
+<div class="sidebar-foot">L10 &copy; 2026<br>SISTEMA DE INVENTARIO</div>
+</div>
+
+<div class="user-bar">
+<span id="usuarioActivo">Cargando...</span>
+<button onclick="logout()">Cerrar sesión</button>
+</div>
+
+<div class="main">
+
+<div class="card">
+
+<div class="top-bar">
+<div>
+<span class="eyebrow">Control físico ↔ digital</span>
+<h2>Etiquetas de cajas</h2>
+</div>
+</div>
+
+<div id="etqAviso" class="etq-aviso" style="display:none;">
+<span></span>
+<button type="button" id="etqVerPend">Ver solo pendientes</button>
+</div>
+
+<input class="buscador" id="etqBuscar" placeholder="Buscar por número de caja, ubicación, material o PN..." style="margin-top:10px;">
+
+<div class="etq-panel">
+
+<div class="etq-fila">
+<label class="etq-op"><input type="checkbox" id="etqSoloPend"> Mostrar solo pendientes de cambiar</label>
+<label class="etq-op"><input type="checkbox" id="etqIncluirMov" checked> Incluir en la imagen los movimientos registrados</label>
+<span class="etq-info" id="etqTotal"></span>
+</div>
+
+<div class="etq-fila">
+<strong>Seleccionar para descargar:</strong>
+<button type="button" id="etqSelVisibles">Todas las visibles</button>
+<button type="button" id="etqSelNinguna" style="background:#6b7280;">Ninguna</button>
+<span class="etq-rango">
+Desde caja <input id="etqDesde" type="number" min="0" placeholder="1">
+hasta <input id="etqHasta" type="number" min="0" placeholder="50">
+<button type="button" id="etqSelRango">Seleccionar rango</button>
+</span>
+</div>
+
+<div class="etq-fila">
+<span id="etqContador" class="etq-contador">0 etiquetas seleccionadas</span>
+<button type="button" id="etqZip" class="etq-btn-desc">⬇ Descargar carpeta (ZIP)</button>
+<button type="button" id="etqCarpeta" class="etq-btn-desc">📁 Guardar en una carpeta de mi PC</button>
+<span id="etqEstado" class="etq-info"></span>
+</div>
+
+<p class="etq-nota">También puedes marcar etiquetas una por una con la casilla de cada tarjeta. Cada imagen se guarda como <b>CAJA 34.png</b>, <b>CAJA 35.png</b>…</p>
+
+</div>
+
+<div id="etqGrid" class="etq-grid"><p class="etq-vacio">Cargando etiquetas…</p></div>
+
+</div>
+
+</div>
+
+<style>
+.etq-aviso{ display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin:12px 0 0; padding:12px 14px; border-radius:10px; background:#fff3ec; border:2px solid #ff5a1f; color:#7a2b08; font-weight:600; animation:etqAv 1s ease-in-out infinite; }
+@keyframes etqAv{ 0%,100%{ background:#fff3ec; } 50%{ background:#ffc9ad; } }
+.etq-panel{ margin:14px 0 4px; padding:14px; border:1px solid var(--line,#e1e5ea); border-radius:10px; background:var(--paper-2,#fafbfc); }
+.etq-fila{ display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center; margin-bottom:10px; }
+.etq-fila button{ margin:0 !important; }
+.etq-rango{ display:inline-flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.etq-rango input{ width:90px; margin:0; }
+.etq-op{ display:flex; gap:7px; align-items:center; margin:0; font-size:13px; }
+.etq-op input{ width:auto; margin:0; }
+.etq-info{ font-size:12.5px; color:var(--ink-muted,#6b7280); }
+.etq-contador{ font-weight:700; }
+.etq-nota{ margin:2px 0 0; font-size:12.5px; color:var(--ink-muted,#6b7280); }
+.etq-btn-desc:disabled{ opacity:.45; cursor:not-allowed; }
+.etq-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(380px,1fr)); gap:16px; margin-top:16px; }
+.etq-vacio{ grid-column:1/-1; color:var(--ink-muted,#6b7280); }
+.etq-card{ border:2px solid var(--line,#e1e5ea); border-radius:12px; padding:10px; background:#fff; }
+.etq-card.sel{ border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+.etq-card.pend{ border-color:#ff5a1f; animation:etqCard 1s ease-in-out infinite; }
+@keyframes etqCard{ 0%,100%{ background:#fff; box-shadow:0 0 0 0 rgba(255,90,31,0); } 50%{ background:#fff0e8; box-shadow:0 0 0 5px rgba(255,90,31,.45); } }
+.etq-head{ display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+.etq-chk{ display:flex; gap:8px; align-items:center; margin:0; cursor:pointer; font-size:16px; }
+.etq-chk input{ width:auto; margin:0; }
+.etq-meta{ font-size:12px; color:var(--ink-muted,#6b7280); }
+.etq-alerta{ background:#ff5a1f; color:#fff; border-radius:8px; padding:9px 11px; margin-bottom:8px; font-size:13px; }
+.etq-alerta ul{ margin:5px 0 8px 18px; padding:0; }
+.etq-alerta button{ background:#fff !important; color:#b83a06 !important; margin:0 !important; }
+.etq-prev{ line-height:0; }
+.etq-canvas{ width:100%; height:auto; display:block; border-radius:8px; }
+.etq-cargando{ padding:40px 0; text-align:center; color:var(--ink-muted,#6b7280); font-size:13px; line-height:1.4; }
+.etq-pie{ margin-top:8px; display:flex; justify-content:flex-end; }
+.etq-pie button{ margin:0 !important; }
+@media(max-width:560px){ .etq-grid{ grid-template-columns:1fr; } }
+</style>
+
+<!-- AUTH -->
+<script type="module" src="auth-global.js"></script>
+
+<!-- APP -->
+<script type="module" src="app.js"></script>
+
+<script src="etiquetas.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", async () => {
+
+  let intentos = 0;
+  while (!window.currentUser && intentos < 30) {
+    await new Promise(r => setTimeout(r, 100));
+    intentos++;
+  }
+
+  intentos = 0;
+  while (typeof window.prepararEtiquetas !== "function" && intentos < 50) {
+    await new Promise(r => setTimeout(r, 100));
+    intentos++;
+  }
+
+  document.getElementById("etqVerPend").addEventListener("click", () => {
+    const c = document.getElementById("etqSoloPend");
+    c.checked = true;
+    c.dispatchEvent(new Event("change"));
+  });
+
+  window.iniciarEtiquetas();
+
+  try{ await window.prepararEtiquetas(); }catch(e){ console.error(e); }
+  window.renderEtiquetas();
+
+  document.body.classList.add("loaded");
+
+  document.querySelectorAll(".sidebar a").forEach(a => {
+    if (a.getAttribute("href") === location.pathname.split("/").pop()) {
+      a.classList.add("active");
+    }
+  });
+
+});
+</script>
+
+<script src="nav.js"></script>
+
+</body>
+</html>
