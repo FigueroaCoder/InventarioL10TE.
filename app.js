@@ -2845,6 +2845,10 @@ function etqVista(c){
 
   if(d && d.reimprimir) motivos.push("Se corrigió el nombre de un material");
 
+  /* con más de 3 materiales la etiqueta es genérica ("MÁS DE 3 MATERIALES EN ESTA CAJA"):
+     si ya era así, agregar o renombrar materiales no obliga a cambiarla */
+  if(impresos.length > 3 && lista.length > 3) motivos.length = 0;
+
   const filas = ((d && d.filas) || []).slice().sort((x, y) => (x.ts || 0) - (y.ts || 0));
 
   return {
@@ -3388,6 +3392,255 @@ function trIniciar(){
     if(window.currentUser){ clearInterval(t); trIniciar(); }
   }, 200);
 })();
+
+/* =====================================================
+   CHAT INTERNO + PRESENCIA (verde = conectado, rojo = no)
+   -----------------------------------------------------
+   - "presencia/<correo>": cada usuario con sesión abierta escribe un
+     latido cada 30 s. Se considera ACTIVO si el último latido es de
+     hace menos de 2.5 min.
+   - "mensajes": { de, para, texto, ts, leido }. Cada mensaje solo lo
+     pueden leer quien lo envía y quien lo recibe (ver reglas de Firestore
+     en CAMBIOS.md).
+   - Al llegar un mensaje nuevo aparece un aviso flotante; al pulsarlo se
+     abre el chat con esa persona. El menú muestra el contador de no leídos.
+   ===================================================== */
+
+const CHAT_LATIDO_MS = 30000;
+const CHAT_ACTIVO_MS = 150000;
+
+let cachePresencia = [];
+let cacheMsgRecibidos = [];
+let cacheMsgEnviados = [];
+let chatIniciado = false;
+let chatPrimeraCarga = true;
+
+function chatYo(){
+  return String((window.currentUser && window.currentUser.email) || "").trim().toLowerCase();
+}
+
+function chatEstaActivo(p){
+  return !!p && !!p.lastSeen && p.online !== false && (Date.now() - p.lastSeen) < CHAT_ACTIVO_MS;
+}
+
+/* ---------- presencia ---------- */
+async function chatLatido(online){
+  const yo = chatYo();
+  if(!yo) return;
+  try{
+    await setDoc(doc(db, "presencia", yo), {
+      email: yo,
+      nombre: trNombreBonito(yo),
+      lastSeen: Date.now(),
+      online: online !== false
+    }, { merge: true });
+  }catch(e){
+    console.error("Chat (presencia):", e);
+  }
+}
+
+/* usuarios conocidos: los que han entrado al sistema + los de la colección "usuarios" */
+window.getChatUsuarios = function(){
+  const yo = chatYo();
+  const mapa = new Map();
+
+  cachePresencia.forEach(p => {
+    const em = String(p.idDoc || p.email || "").toLowerCase();
+    if(!em || em === yo) return;
+    mapa.set(em, { email: em, nombre: p.nombre || trNombreBonito(em), activo: chatEstaActivo(p), lastSeen: p.lastSeen || 0 });
+  });
+
+  cacheMsgRecibidos.forEach(m => { const em = String(m.de || "").toLowerCase(); if(em && em !== yo && !mapa.has(em)) mapa.set(em, { email: em, nombre: trNombreBonito(em), activo: false, lastSeen: 0 }); });
+  cacheMsgEnviados.forEach(m => { const em = String(m.para || "").toLowerCase(); if(em && em !== yo && !mapa.has(em)) mapa.set(em, { email: em, nombre: trNombreBonito(em), activo: false, lastSeen: 0 }); });
+
+  (window.chatUsuariosExtra || []).forEach(em => {
+    em = String(em || "").toLowerCase();
+    if(!em || em === yo || mapa.has(em)) return;
+    mapa.set(em, { email: em, nombre: trNombreBonito(em), activo: false, lastSeen: 0 });
+  });
+
+  return Array.from(mapa.values()).sort((a, b) =>
+    (Number(b.activo) - Number(a.activo)) || a.nombre.localeCompare(b.nombre));
+};
+
+/* ---------- mensajes ---------- */
+function chatConversacion(con){
+  con = String(con || "").toLowerCase();
+  return cacheMsgRecibidos.filter(m => String(m.de).toLowerCase() === con)
+    .concat(cacheMsgEnviados.filter(m => String(m.para).toLowerCase() === con))
+    .sort((a, b) => (a.ts || 0) - (b.ts || 0));
+}
+window.getChatConversacion = chatConversacion;
+
+window.getChatNoLeidos = function(){
+  const r = {};
+  cacheMsgRecibidos.forEach(m => {
+    if(m.leido) return;
+    const de = String(m.de).toLowerCase();
+    r[de] = (r[de] || 0) + 1;
+  });
+  return r;
+};
+
+window.enviarMensajeChat = async function(para, texto){
+  const yo = chatYo();
+  para = String(para || "").trim().toLowerCase();
+  texto = String(texto || "").trim();
+  if(!yo || !para || !texto) return false;
+  if(texto.length > 1000) texto = texto.slice(0, 1000);
+  try{
+    await addDoc(collection(db, "mensajes"), {
+      de: yo,
+      para,
+      texto,
+      ts: Date.now(),
+      leido: false
+    });
+    return true;
+  }catch(e){
+    console.error(e);
+    alert("No se pudo enviar el mensaje");
+    return false;
+  }
+};
+
+window.marcarChatLeidos = async function(con){
+  con = String(con || "").toLowerCase();
+  const pend = cacheMsgRecibidos.filter(m => !m.leido && String(m.de).toLowerCase() === con);
+  for(const m of pend){
+    try{ await updateDoc(doc(db, "mensajes", m.idDoc), { leido: true }); }catch(e){ console.error(e); }
+  }
+};
+
+/* ---------- aviso flotante + contador en el menú ---------- */
+function chatToast(m){
+
+  trInyectarEstilos();
+
+  const el = document.createElement("div");
+  el.className = "tr-toast";
+  el.style.setProperty("--c", "#2563eb");
+  el.title = "Clic para abrir el chat";
+  el.innerHTML = `
+<span class="tr-ico">💬</span>
+<div>
+  <div><span class="tr-quien">${trEscape(trNombreBonito(m.de))}</span> te envió un mensaje</div>
+  <div class="tr-det">${trEscape(String(m.texto || "").slice(0, 90))}</div>
+</div>`;
+
+  const cont = trContenedor();
+  cont.appendChild(el);
+
+  const activos = cont.querySelectorAll(".tr-toast:not(.saliendo)");
+  if(activos.length > TR_TOAST_MAX) trCerrarToast(activos[0]);
+
+  el.addEventListener("click", () => {
+    window.location.href = "chat.html?con=" + encodeURIComponent(m.de);
+  });
+  setTimeout(() => trCerrarToast(el), 9000);
+}
+
+function chatPintarAviso(){
+
+  if(!document.getElementById("chatEstilos")){
+    const st = document.createElement("style");
+    st.id = "chatEstilos";
+    st.textContent = `
+.chat-badge{ margin-left:auto; background:#2563eb; color:#fff; border-radius:99px; font-size:11px; font-weight:700; padding:2px 8px; line-height:1.4; }
+@keyframes chatBlink{ 0%,100%{ background:rgba(37,99,235,0); } 50%{ background:rgba(37,99,235,.45); } }
+.sidebar a.chat-nuevo{ animation:chatBlink 1.2s ease-in-out infinite; }
+`;
+    document.head.appendChild(st);
+  }
+
+  const total = cacheMsgRecibidos.filter(m => !m.leido).length;
+  window.chatNoLeidosTotal = total;
+
+  document.querySelectorAll('.sidebar a[href="chat.html"]').forEach(a => {
+    a.classList.toggle("chat-nuevo", total > 0);
+    let b = a.querySelector(".chat-badge");
+    if(total > 0){
+      if(!b){ b = document.createElement("span"); b.className = "chat-badge"; a.appendChild(b); }
+      b.textContent = total;
+    } else if(b){
+      b.remove();
+    }
+  });
+}
+
+function chatIniciar(){
+
+  if(chatIniciado) return;
+  const yo = chatYo();
+  if(!yo) return;
+  chatIniciado = true;
+
+  /* latido de presencia */
+  chatLatido(true);
+  setInterval(() => chatLatido(true), CHAT_LATIDO_MS);
+  document.addEventListener("visibilitychange", () => { if(!document.hidden) chatLatido(true); });
+  window.addEventListener("pagehide", () => {
+    try{ setDoc(doc(db, "presencia", yo), { lastSeen: Date.now(), online: false }, { merge: true }); }catch(e){}
+  });
+
+  /* usuarios ya registrados en el sistema (si hay permiso para leerlos) */
+  getDocs(collection(db, "usuarios")).then(s => {
+    window.chatUsuariosExtra = s.docs.map(d => d.id);
+    if(typeof window.renderChat === "function") window.renderChat();
+  }).catch(() => {});
+
+  onSnapshot(collection(db, "presencia"), snap => {
+    cachePresencia = snap.docs.map(d => ({ idDoc: d.id, ...d.data() }));
+    if(typeof window.renderChat === "function") window.renderChat();
+  }, err => console.error("Chat (presencia):", err));
+
+  /* el estado verde/rojo se recalcula solo con el paso del tiempo */
+  setInterval(() => { if(typeof window.renderChat === "function") window.renderChat(); }, 20000);
+
+  /* mensajes que me enviaron */
+  onSnapshot(query(collection(db, "mensajes"), where("para", "==", yo)), snap => {
+
+    cacheMsgRecibidos = snap.docs.map(d => ({ idDoc: d.id, ...d.data() }));
+
+    if(chatPrimeraCarga){
+      chatPrimeraCarga = false;
+      const n = cacheMsgRecibidos.filter(m => !m.leido).length;
+      if(n > 0 && !/chat\.html$/i.test(location.pathname)){
+        chatToast({ de: cacheMsgRecibidos.filter(m => !m.leido).sort((a, b) => b.ts - a.ts)[0].de,
+                    texto: n === 1 ? "Tienes 1 mensaje sin leer" : "Tienes " + n + " mensajes sin leer" });
+      }
+    } else {
+      snap.docChanges().forEach(ch => {
+        if(ch.type !== "added") return;
+        const m = ch.doc.data();
+        if(!m || m.leido) return;
+        const abierto = /chat\.html$/i.test(location.pathname)
+          && window.chatConversacionAbierta === String(m.de).toLowerCase() && !document.hidden;
+        if(!abierto) chatToast(m);
+      });
+    }
+
+    chatPintarAviso();
+    if(typeof window.renderChat === "function") window.renderChat();
+
+  }, err => console.error("Chat (recibidos):", err));
+
+  /* mensajes que yo envié (para ver la conversación completa) */
+  onSnapshot(query(collection(db, "mensajes"), where("de", "==", yo)), snap => {
+    cacheMsgEnviados = snap.docs.map(d => ({ idDoc: d.id, ...d.data() }));
+    if(typeof window.renderChat === "function") window.renderChat();
+  }, err => console.error("Chat (enviados):", err));
+}
+
+(function esperarSesionChat(){
+  if(window.currentUser){ chatIniciar(); return; }
+  const t = setInterval(() => {
+    if(window.currentUser){ clearInterval(t); chatIniciar(); }
+  }, 250);
+})();
+
+document.addEventListener("DOMContentLoaded", () => setTimeout(chatPintarAviso, 700));
+
 
 /* =====================================================
    SOLO MAYÚSCULAS AL ESCRIBIR (en todas las secciones)

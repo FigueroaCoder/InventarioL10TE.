@@ -352,3 +352,42 @@ Archivos modificados: `app.js`, `stock.html`, `CAMBIOS.md`.
 - **Historial**: ahora se ordena del movimiento más reciente al más viejo (por marca de tiempo `ts`; los registros viejos sin `ts` se ordenan leyendo su fecha).
 - **Espacio que ocupa / capacidad**: eliminado de Registrar Entrada, del visor 3D (barra de espacio), de la creación de cajas y del regreso desde Tool Crib. Se conservan el **tamaño de caja** (chica / mediana / grande) y el **status** (vacía / poco contenido / medio / llena).
 - **Registrar Entrada → + Nueva caja en este slot**: abre un panel para elegir número de caja (sugerido automático), tamaño y status, igual que en el 3D; al crearla queda seleccionada en el formulario.
+
+
+---
+
+## Update: Chat + etiquetas con más de 3 materiales
+
+**Archivos nuevos:** `chat.html`
+**Archivos modificados:** `app.js`, `etiquetas.js`, `entrada.html` y el menú lateral (opción 10 Chat) de todas las páginas con menú.
+
+### Chat (menú 10)
+- Lista de usuarios con punto **verde** (conectado) o **rojo** (inactivo, con "hace X min"). Un usuario aparece en la lista cuando ha entrado al sistema después de este update (o si ya existe en la colección `usuarios`).
+- Mensajes privados 1 a 1. Solo los ven quien los envía y quien los recibe.
+- Al llegar un mensaje aparece un aviso flotante en cualquier página; al pulsarlo abre `chat.html` con esa conversación. El menú muestra el contador de no leídos y parpadea.
+- Los mensajes se marcan como "✓ visto" cuando el otro usuario los abre.
+
+### Etiquetas
+- Más de 3 materiales en la caja: el campo Material dice **"MÁS DE 3 MATERIALES EN ESTA CAJA"** y el material que te llevas se anota en la tabla.
+- Todas las etiquetas con más de un material tienen en la tabla una columna nueva **MATERIAL** (con espacio para anotarlo; los movimientos registrados en el sistema ya salen con el nombre).
+- Si el material no tiene P/N o Medida, esas líneas **ya no se escriben** en la etiqueta.
+- Si la caja ya tenía etiqueta de "más de 3 materiales", agregar otro material no obliga a cambiarla físicamente.
+
+### Reglas de Firestore a agregar (colecciones nuevas `presencia` y `mensajes`)
+```
+match /presencia/{email} {
+  allow read: if request.auth != null;
+  allow write: if request.auth != null && request.auth.token.email.lower() == email;
+}
+match /mensajes/{id} {
+  allow create: if request.auth != null
+    && request.resource.data.de == request.auth.token.email.lower();
+  allow read: if request.auth != null
+    && (resource.data.de == request.auth.token.email.lower()
+        || resource.data.para == request.auth.token.email.lower());
+  allow update: if request.auth != null
+    && resource.data.para == request.auth.token.email.lower()
+    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['leido']);
+}
+```
+(Sin estas reglas el chat no funciona, y sin la regla de `mensajes` no se garantiza que cada mensaje sea visible solo para su destinatario.)

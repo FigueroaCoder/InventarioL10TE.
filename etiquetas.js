@@ -40,6 +40,28 @@
     return s;
   }
 
+  /* nombre del material dentro de la celda: una línea o, si no cabe, dos */
+  function nombreEnCelda(ctx, t, cx, yTop, rowH, maxW){
+    ctx.fillStyle = "#111";
+    ctx.textAlign = "center";
+    fuente(ctx, 24);
+    if(ctx.measureText(t).width <= maxW){
+      texto(ctx, t, cx, yTop + rowH / 2 + 8, maxW, 24, 12, "center");
+      return;
+    }
+    var pal = t.split(" ");
+    var mejor = 1, dif = 1e9;
+    for(var i = 1; i < pal.length; i++){
+      var a = pal.slice(0, i).join(" "), b = pal.slice(i).join(" ");
+      var d = Math.abs(ctx.measureText(a).width - ctx.measureText(b).width);
+      if(d < dif){ dif = d; mejor = i; }
+    }
+    var l1 = pal.slice(0, mejor).join(" "), l2 = pal.slice(mejor).join(" ");
+    var sz = Math.min(20, Math.floor(rowH / 3));
+    texto(ctx, l1, cx, yTop + rowH / 2 - 4, maxW, sz, 10, "center");
+    texto(ctx, l2, cx, yTop + rowH / 2 + sz, maxW, sz, 10, "center");
+  }
+
   /* ---------------- la etiqueta ---------------- */
   /* v = objeto de getEtiquetas(); opts = { escala, incluirMov } */
   function dibujarEtiqueta(v, opts){
@@ -52,23 +74,37 @@
     var k = mats.length;
     var multi = k > 1;
 
-    /* encabezado: 4 líneas si hay un material; 2 líneas por material si hay varios */
+    /* encabezado:
+       - 1 material  : Material / P/N / Medida / Cantidad (P/N y Medida solo si existen)
+       - 2 o 3       : un bloque numerado por material
+       - más de 3    : leyenda "MÁS DE 3 MATERIALES EN ESTA CAJA" y el material se anota en la tabla */
+    var tiene = function(x){ return x && x !== "N/A"; };
     var lineas = [];
-    if(!multi){
+    var masDe3 = k > 3;
+    if(masDe3){
+      lineas.push({ t: "Material:" });
+      lineas.push({ t: "MÁS DE 3 MATERIALES" });
+      lineas.push({ t: "EN ESTA CAJA" });
+      lineas.push({ t: "( anota abajo qué material te llevas )", det: true });
+    } else if(!multi){
       var m = mats[0];
-      lineas.push("Material: " + m.nombre);
-      lineas.push("P/N: " + m.pn);
-      lineas.push("Medida: " + m.medida);
-      lineas.push("Cantidad: " + (m.vacio ? "N/A" : m.cant0 + " UNIDADES"));
+      lineas.push({ t: "Material: " + m.nombre });
+      if(tiene(m.pn)) lineas.push({ t: "P/N: " + m.pn });
+      if(tiene(m.medida)) lineas.push({ t: "Medida: " + m.medida });
+      lineas.push({ t: "Cantidad: " + (m.vacio ? "N/A" : m.cant0 + " UNIDADES") });
     } else {
       mats.forEach(function(m, i){
-        lineas.push((i + 1) + ") " + m.nombre);
-        lineas.push("    P/N: " + m.pn + "   ·   MEDIDA: " + m.medida + "   ·   CANT: " + m.cant0 + " UNID.");
+        lineas.push({ t: (i + 1) + ") " + m.nombre });
+        var partes = [];
+        if(tiene(m.pn)) partes.push("P/N: " + m.pn);
+        if(tiene(m.medida)) partes.push("MEDIDA: " + m.medida);
+        partes.push("CANT: " + m.cant0 + " UNID.");
+        lineas.push({ t: "    " + partes.join("   ·   "), det: true });
       });
     }
 
     var L = lineas.length;
-    var lh = !multi ? 46 : (k <= 3 ? 40 : (k <= 6 ? 34 : 29));
+    var lh = (!multi || masDe3) ? 46 : (k <= 2 ? 42 : 38);
     var px = Math.round(lh * 0.84);
 
     var top = 64;
@@ -76,7 +112,7 @@
     var hdrH = Math.max(cajaH + 6, L * lh + 14);
 
     /* tabla */
-    var colsBase = multi ? [138, 78, 226, 236, 234] : [170, 0, 262, 266, 214];
+    var colsBase = multi ? [120, 220, 175, 190, 207] : [170, 0, 262, 266, 214];
     var tabY = top + hdrH + 6;
     var headH = 62;
     var rowH = 66;
@@ -117,11 +153,10 @@
       while(ctx.measureText(t).width > maxW && q > min){ q -= 1; fuente(ctx, q); }
       return q;
     }
-    var pos = lineas.map(function(t, i){
+    var pos = lineas.map(function(l, i){
       var y = top + 28 + i * lh;
       var maxW = (y - px < cajaY + cajaH + 4) ? (cajaX - 20 - 56) : (W - 56 - 56);
-      var det = multi && (i % 2 === 1);
-      return { t: t, y: y, maxW: maxW, det: det };
+      return { t: l.t, y: y, maxW: maxW, det: !!l.det };
     });
     var szTit = px, szDet = Math.round(px * 0.8);
     pos.forEach(function(o){
@@ -159,7 +194,7 @@
     var xs = [x0];
     cols.forEach(function(c){ xs.push(xs[xs.length - 1] + c); });
 
-    var titulos = ["FECHA", "MAT.", "CANT. EXTRAÍDA", "TOTAL RESTANTE", "FIRMA"];
+    var titulos = ["FECHA", "MATERIAL", "CANT. EXTRAÍDA", "TOTAL RESTANTE", "FIRMA"];
     for(var i = 0; i < 5; i++){
       if(!multi && i === 1) continue;
       var cx = (xs[i] + xs[i + 1]) / 2;
@@ -210,7 +245,8 @@
 
       if(multi){
         var n = mats.findIndex(function(m){ return m.nombre === f.nom; }) + 1;
-        texto(ctx, n > 0 ? String(n) : "?", (xs[1] + xs[2]) / 2, yb, cols[1] - 8, 40, 16, "center");
+        var nomMat = (!masDe3 && n > 0 ? n + ") " : "") + f.nom;
+        nombreEnCelda(ctx, nomMat, (xs[1] + xs[2]) / 2, yHead + idx * rowH, rowH, cols[1] - 14);
       }
 
       var signo = f.tipo === "+" ? "+" : "-";
