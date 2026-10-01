@@ -1,6 +1,6 @@
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
 import {
-  getFirestore, collection, addDoc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot
+  getFirestore, collection, addDoc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, arrayUnion
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
 
 /* =====================
@@ -176,6 +176,7 @@ window.registerEntry = async function(){
   let cantidad = parseInt(document.getElementById("cantidad").value);
   let comentarios = (document.getElementById("comentarios").value.trim() || "NO APLICA").toUpperCase();
   let categoria = document.getElementById("categoria")?.value || "";
+  let medida = (document.getElementById("medida")?.value || "").trim().toUpperCase();
 
   if(!rack || !nivel || !slot || !ubicacion){
     alert("Selecciona rack, nivel, slot y caja");
@@ -191,6 +192,10 @@ window.registerEntry = async function(){
   if(!pn){
     const match = window.getMaterialesCatalogo().find(m => String(m.nombre).toLowerCase() === nombre.toLowerCase());
     pn = (match && match.pn && match.pn !== "NO APLICA") ? String(match.pn).toUpperCase() : "NO APLICA";
+  }
+  if(!medida){
+    const mm = window.getMaterialesCatalogo().find(m => String(m.nombre).toLowerCase() === nombre.toLowerCase());
+    medida = (mm && mm.medida) ? String(mm.medida).toUpperCase() : "";
   }
 
   try{
@@ -214,18 +219,20 @@ window.registerEntry = async function(){
       componentes[idx].comentarios = comentarios;
       componentes[idx].responsable = getUser();
       if(categoria) componentes[idx].categoria = categoria;
+      if(medida) componentes[idx].medida = medida;
     } else {
       componentes.push({
         nombre, pn, cantidad, comentarios,
         responsable: getUser(),
-        categoria: categoria || ""
+        categoria: categoria || "",
+        medida: medida || ""
       });
     }
 
     await updateDoc(cajaRef, { componentes });
 
     // 🔥 HISTORIAL
-    await addDoc(collection(db,"historial"),{
+    await addHist({
       ts: Date.now(),
       sid: SESION_ID,
       fecha: new Date().toLocaleString(),
@@ -435,7 +442,7 @@ window.registrarSalida = async function(){
 
     await updateDoc(cajaRef, { componentes });
 
-    await addDoc(collection(db,"historial"),{
+    await addHist({
       ts: Date.now(),
       sid: SESION_ID,
       fecha: new Date().toLocaleString(),
@@ -730,6 +737,8 @@ function seleccionarProducto(p){
 
   document.getElementById("nombre").value = p.nombre || "";
   document.getElementById("pn").value = (p.pn && p.pn !== "NO APLICA") ? p.pn : "";
+  const medidaInput = document.getElementById("medida");
+  if(medidaInput) medidaInput.value = p.medida || "";
 
   document.getElementById("cantidad").value = "";
   document.getElementById("cantidad").focus();
@@ -979,6 +988,7 @@ window.eliminarCaja = async function(ubicacion){
 
   try{
     await deleteDoc(doc(db,"cajas",ubicacion));
+    try{ if(caja) await deleteDoc(doc(db,"etiquetas", etqId(etqNumCaja(caja)))); }catch(e){ console.error(e); }
     await loadCajas(true);
     if(typeof window.renderRacksPage === "function") window.renderRacksPage();
   }catch(e){
@@ -1023,7 +1033,7 @@ window.eliminarMaterial = async function(ubicacion, nombreMaterial){
 
     await updateDoc(cajaRef, { componentes });
 
-    await addDoc(collection(db,"historial"),{
+    await addHist({
       ts: Date.now(),
       sid: SESION_ID,
       fecha: new Date().toLocaleString(),
@@ -1050,15 +1060,175 @@ window.eliminarMaterial = async function(ubicacion, nombreMaterial){
 
 /* =====================
 EDITAR MATERIAL YA REGISTRADO — SOLO ADMIN
-Permite corregir cantidad, PN y comentarios de un material que ya existe
-en una caja. Queda registrado en Historial como "ACTUALIZACION".
+Ventana de edición: permite corregir el NOMBRE (escribiéndolo o eligiendo uno
+ya registrado para que ambos sean el mismo material), la cantidad, el Part
+Number, la medida y los comentarios. Queda en Historial como "ACTUALIZACION".
 ===================== */
+
+function emEstilos(){
+  if(document.getElementById("emEstilos")) return;
+  const st = document.createElement("style");
+  st.id = "emEstilos";
+  st.textContent = `
+.em-overlay{ position:fixed; inset:0; background:rgba(10,12,16,.62); z-index:99999; display:flex; align-items:center; justify-content:center; padding:16px; }
+.em-box{ background:#fff; width:min(560px,100%); max-height:92vh; overflow:auto; border-radius:12px; padding:22px 22px 18px; box-shadow:0 30px 70px -20px rgba(0,0,0,.55); border-top:4px solid var(--accent,#ff5a1f); }
+.em-box h3{ margin:0 0 4px; font-family:var(--font-display,inherit); font-size:26px; letter-spacing:.5px; }
+.em-box p.em-sub{ margin:0 0 12px; color:var(--ink-muted,#6b7280); font-size:12.5px; }
+.em-box label{ display:block; margin:12px 0 4px; }
+.em-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+.em-sugs{ border:1px solid var(--line,#e1e5ea); border-radius:8px; margin-top:4px; max-height:190px; overflow:auto; display:none; background:#fff; }
+.em-sug{ padding:9px 12px; cursor:pointer; font-size:13.5px; border-bottom:1px solid var(--line-soft,#eceff2); display:flex; justify-content:space-between; gap:10px; }
+.em-sug:last-child{ border-bottom:0; }
+.em-sug:hover{ background:#fff3ec; }
+.em-sug small{ color:var(--ink-muted,#6b7280); white-space:nowrap; }
+.em-estado{ font-size:12.5px; margin-top:6px; font-weight:600; }
+.em-estado.ok{ color:#1f9d55; } .em-estado.nuevo{ color:#b45309; } .em-estado.igual{ color:var(--ink-muted,#6b7280); }
+.em-chk{ display:flex; gap:9px; align-items:flex-start; margin-top:14px; font-size:13px; line-height:1.35; }
+.em-chk input{ width:auto; margin-top:2px; }
+.em-btns{ display:flex; gap:10px; justify-content:flex-end; margin-top:18px; }
+.em-btns button{ margin:0 !important; }
+@media(max-width:560px){ .em-grid{ grid-template-columns:1fr; } }
+`;
+  document.head.appendChild(st);
+}
+
+function modalEditarMaterial(actual, ubicacion){
+
+  return new Promise(resolve => {
+
+    emEstilos();
+
+    const catalogo = window.getMaterialesCatalogo();
+    const claveActual = invClave(actual.nombre);
+    const otrasCajas = cacheCajas.filter(c =>
+      (c.componentes || []).some(x => invClave(x.nombre) === claveActual)
+    ).length;
+
+    const ov = document.createElement("div");
+    ov.className = "em-overlay";
+    ov.innerHTML = `
+<div class="em-box" role="dialog" aria-modal="true">
+<h3>EDITAR MATERIAL</h3>
+<p class="em-sub">Caja ${trEscape(ubicacion)} · escribe para corregir el nombre o elige uno ya registrado para hacerlos coincidir.</p>
+
+<label>Nombre del producto</label>
+<input id="emNombre" autocomplete="off" value="${trEscape(actual.nombre)}">
+<div class="em-sugs" id="emSug"></div>
+<div class="em-estado igual" id="emEstado">Nombre actual</div>
+
+<div class="em-grid">
+<div><label>Cantidad</label><input id="emCant" type="number" min="0" value="${Number(actual.cantidad) || 0}"></div>
+<div><label>Part Number</label><input id="emPn" value="${trEscape(actual.pn || "NO APLICA")}"></div>
+<div><label>Medida</label><input id="emMedida" placeholder="N/A" value="${trEscape(actual.medida || "")}"></div>
+</div>
+
+<label>Comentarios</label>
+<input id="emCom" value="${trEscape(actual.comentarios || "")}">
+
+<label class="em-chk"><input type="checkbox" id="emTodas" checked>
+<span>Aplicar el cambio de <b>nombre, PN y medida</b> a <b>todas las cajas</b> donde está este material (${otrasCajas} ${otrasCajas === 1 ? "caja" : "cajas"}). La cantidad y los comentarios solo cambian en esta caja.</span></label>
+
+<div class="em-btns">
+<button type="button" id="emCancelar" style="background:#6b7280;">Cancelar</button>
+<button type="button" id="emGuardar">Guardar cambios</button>
+</div>
+</div>`;
+
+    document.body.appendChild(ov);
+
+    const $ = id => ov.querySelector("#" + id);
+    const inNombre = $("emNombre"), sug = $("emSug"), estado = $("emEstado");
+
+    function norm(t){ return String(t || "").trim().replace(/\s+/g, " ").toUpperCase(); }
+
+    function actualizarEstado(){
+      const k = invClave(inNombre.value);
+      if(!k){ estado.className = "em-estado nuevo"; estado.textContent = "Escribe un nombre"; return; }
+      if(k === claveActual && norm(inNombre.value) === norm(actual.nombre)){
+        estado.className = "em-estado igual"; estado.textContent = "Nombre actual"; return;
+      }
+      const existe = catalogo.find(m => invClave(m.nombre) === k && invClave(m.nombre) !== claveActual);
+      if(existe){
+        estado.className = "em-estado ok";
+        estado.textContent = "✔ Coincide con un material ya registrado: se unificará con ese nombre";
+      } else {
+        estado.className = "em-estado nuevo";
+        estado.textContent = "Nombre nuevo: se guardará como corrección del nombre";
+      }
+    }
+
+    function pintarSugerencias(){
+      const q = invClave(inNombre.value);
+      const lista = catalogo
+        .filter(m => invClave(m.nombre) !== claveActual)
+        .filter(m => !q || invClave(m.nombre).includes(q) || String(m.pn || "").toUpperCase().includes(q))
+        .sort((a, b) => String(a.nombre).localeCompare(String(b.nombre)))
+        .slice(0, 8);
+
+      if(!lista.length){ sug.style.display = "none"; sug.innerHTML = ""; return; }
+
+      sug.innerHTML = "";
+      lista.forEach(m => {
+        const it = document.createElement("div");
+        it.className = "em-sug";
+        const pn = (m.pn && m.pn !== "NO APLICA") ? m.pn : "";
+        it.innerHTML = `<span>${trEscape(m.nombre)}</span><small>${trEscape(pn)}</small>`;
+        it.addEventListener("mousedown", ev => {
+          ev.preventDefault();
+          inNombre.value = String(m.nombre).toUpperCase();
+          if(m.pn && m.pn !== "NO APLICA") $("emPn").value = String(m.pn).toUpperCase();
+          if(m.medida) $("emMedida").value = String(m.medida).toUpperCase();
+          sug.style.display = "none";
+          actualizarEstado();
+        });
+        sug.appendChild(it);
+      });
+      sug.style.display = "block";
+    }
+
+    inNombre.addEventListener("input", () => { pintarSugerencias(); actualizarEstado(); });
+    inNombre.addEventListener("focus", pintarSugerencias);
+    inNombre.addEventListener("blur", () => setTimeout(() => { sug.style.display = "none"; }, 150));
+
+    function cerrar(val){
+      document.removeEventListener("keydown", onKey);
+      ov.remove();
+      resolve(val);
+    }
+
+    function onKey(e){ if(e.key === "Escape") cerrar(null); }
+    document.addEventListener("keydown", onKey);
+
+    $("emCancelar").onclick = () => cerrar(null);
+    ov.addEventListener("mousedown", e => { if(e.target === ov) cerrar(null); });
+
+    $("emGuardar").onclick = () => {
+      const nombre = norm(inNombre.value);
+      const cantidad = parseInt($("emCant").value);
+      if(!nombre){ alert("El nombre no puede quedar vacío"); return; }
+      if(isNaN(cantidad) || cantidad < 0){ alert("Cantidad inválida"); return; }
+      cerrar({
+        nombre,
+        cantidad,
+        pn: $("emPn").value,
+        medida: $("emMedida").value,
+        comentarios: $("emCom").value,
+        todas: $("emTodas").checked
+      });
+    };
+
+    inNombre.focus();
+    inNombre.select();
+  });
+}
 
 window.editarMaterial = async function(ubicacion, nombreMaterial){
 
   if(bloquearSiNoAdmin("Solo el administrador puede editar materiales del inventario.")) return;
 
   try{
+
+    await loadCajas(true);
 
     const cajaRef = doc(db,"cajas",ubicacion);
     const cajaSnap = await getDoc(cajaRef);
@@ -1068,60 +1238,157 @@ window.editarMaterial = async function(ubicacion, nombreMaterial){
       return;
     }
 
-    let data = cajaSnap.data();
-    let componentes = data.componentes || [];
+    const dataCaja = cajaSnap.data();
+    let componentes = dataCaja.componentes || [];
 
-    const idx = componentes.findIndex(c => c.nombre.toLowerCase() === nombreMaterial.toLowerCase());
+    const idx = componentes.findIndex(c => String(c.nombre).toLowerCase() === String(nombreMaterial).toLowerCase());
 
     if(idx < 0){
       alert("Ese material ya no está en esta caja");
       return;
     }
 
-    const actual = componentes[idx];
+    const actual = { ...componentes[idx] };
 
-    const cantidadTxt = prompt(`Cantidad para "${actual.nombre}" (caja ${ubicacion}):`, String(actual.cantidad ?? 0));
-    if(cantidadTxt === null) return;
-    const nuevaCantidad = parseInt(cantidadTxt);
-    if(isNaN(nuevaCantidad) || nuevaCantidad < 0){
-      alert("Cantidad inválida");
+    const r = await modalEditarMaterial(actual, ubicacion);
+    if(!r) return;
+
+    const nombreViejo = String(actual.nombre);
+    const nuevoNombre = r.nombre;
+    const renombrar = nuevoNombre !== nombreViejo;
+
+    const pnNuevo = (String(r.pn || "").trim() || "NO APLICA").toUpperCase();
+    const medidaNueva = String(r.medida || "").trim().toUpperCase();
+    const comNuevo = String(r.comentarios || "").toUpperCase();
+
+    const pnCambio = pnNuevo !== String(actual.pn || "NO APLICA").toUpperCase();
+    const medidaCambio = medidaNueva !== String(actual.medida || "").toUpperCase();
+
+    const cambios = [];
+    const cantAntes = Number(actual.cantidad) || 0;
+    if(renombrar) cambios.push(`nombre "${nombreViejo}" → "${nuevoNombre}"`);
+    if(r.cantidad !== cantAntes) cambios.push(`cantidad ${cantAntes} → ${r.cantidad}`);
+    if(pnCambio) cambios.push(`PN "${actual.pn || ""}" → "${pnNuevo}"`);
+    if(medidaCambio) cambios.push(`medida "${actual.medida || ""}" → "${medidaNueva}"`);
+    if(comNuevo !== String(actual.comentarios || "").toUpperCase()) cambios.push("comentarios actualizados");
+
+    if(!cambios.length){
+      alert("No hiciste ningún cambio");
       return;
     }
 
-    const pnTxt = prompt("Part Number:", actual.pn || "NO APLICA");
-    if(pnTxt === null) return;
+    /* ---- esta caja ---- */
+    const mergeCon = renombrar
+      ? componentes.findIndex((c, i) => i !== idx && invClave(c.nombre) === invClave(nuevoNombre))
+      : -1;
 
-    const comentariosTxt = prompt("Comentarios:", actual.comentarios || "");
-    if(comentariosTxt === null) return;
-
-    const cambios = [];
-    if(nuevaCantidad !== (actual.cantidad || 0)) cambios.push(`cantidad ${actual.cantidad || 0} → ${nuevaCantidad}`);
-    if((pnTxt.trim() || "NO APLICA") !== (actual.pn || "NO APLICA")) cambios.push(`PN "${actual.pn || ""}" → "${pnTxt.trim()}"`);
-    if(comentariosTxt !== (actual.comentarios || "")) cambios.push("comentarios actualizados");
-
-    componentes[idx].cantidad = nuevaCantidad;
-    componentes[idx].pn = (pnTxt.trim() || "NO APLICA").toUpperCase();
-    componentes[idx].comentarios = comentariosTxt.toUpperCase();
+    if(mergeCon >= 0){
+      componentes[mergeCon].cantidad = (Number(componentes[mergeCon].cantidad) || 0) + r.cantidad;
+      componentes[mergeCon].nombre = nuevoNombre;
+      if(pnNuevo !== "NO APLICA") componentes[mergeCon].pn = pnNuevo;
+      if(medidaNueva) componentes[mergeCon].medida = medidaNueva;
+      componentes[mergeCon].comentarios = comNuevo;
+      componentes[mergeCon].responsable = getUser();
+      componentes.splice(idx, 1);
+      cambios.push(`unido al material "${nuevoNombre}" que ya estaba en la caja`);
+    } else {
+      componentes[idx].nombre = nuevoNombre;
+      componentes[idx].cantidad = r.cantidad;
+      componentes[idx].pn = pnNuevo;
+      componentes[idx].medida = medidaNueva;
+      componentes[idx].comentarios = comNuevo;
+    }
 
     await updateDoc(cajaRef, { componentes });
 
-    await addDoc(collection(db,"historial"),{
+    /* ---- demás cajas con el mismo material ---- */
+    const otrasActualizadas = [];
+
+    if(r.todas && (renombrar || pnCambio || medidaCambio)){
+
+      const otras = cacheCajas.filter(c =>
+        c.ubicacion !== ubicacion &&
+        (c.componentes || []).some(x => invClave(x.nombre) === invClave(nombreViejo))
+      );
+
+      for(const c of otras){
+
+        const ref = doc(db,"cajas",c.ubicacion);
+        const sn = await getDoc(ref);
+        if(!sn.exists()) continue;
+
+        let comps = sn.data().componentes || [];
+        const i = comps.findIndex(x => invClave(x.nombre) === invClave(nombreViejo));
+        if(i < 0) continue;
+
+        const m = renombrar
+          ? comps.findIndex((x, j) => j !== i && invClave(x.nombre) === invClave(nuevoNombre))
+          : -1;
+
+        if(m >= 0){
+          comps[m].cantidad = (Number(comps[m].cantidad) || 0) + (Number(comps[i].cantidad) || 0);
+          comps[m].nombre = nuevoNombre;
+          if(pnCambio) comps[m].pn = pnNuevo;
+          if(medidaCambio) comps[m].medida = medidaNueva;
+          comps.splice(i, 1);
+        } else {
+          if(renombrar) comps[i].nombre = nuevoNombre;
+          if(pnCambio) comps[i].pn = pnNuevo;
+          if(medidaCambio) comps[i].medida = medidaNueva;
+        }
+
+        await updateDoc(ref, { componentes: comps });
+        otrasActualizadas.push(c);
+      }
+    }
+
+    /* ---- etiquetas: el nombre cambió, la etiqueta física ya no coincide ---- */
+    if(renombrar){
+      await etqRenombrar(dataCaja.caja || ubicacion.split("-").pop(), nombreViejo, nuevoNombre);
+      for(const c of otrasActualizadas){
+        await etqRenombrar(c.caja || String(c.ubicacion).split("-").pop(), nombreViejo, nuevoNombre);
+      }
+    }
+
+    /* ---- historial ---- */
+    const delta = r.cantidad - cantAntes;
+
+    await addHist({
       ts: Date.now(),
       sid: SESION_ID,
       fecha: new Date().toLocaleString(),
       accion: "ACTUALIZACION",
       ubicacion,
-      nombre: actual.nombre,
-      cantidad: nuevaCantidad,
+      nombre: nuevoNombre,
+      cantidad: r.cantidad,
       responsable: getUser(),
-      comentarios: cambios.length ? `Editado por administrador (${cambios.join("; ")})` : "Editado por administrador"
+      comentarios: `Editado por administrador (${cambios.join("; ")})`,
+      delta,
+      sinFila: delta === 0
     });
+
+    for(const c of otrasActualizadas){
+      await addHist({
+        ts: Date.now(),
+        sid: SESION_ID,
+        fecha: new Date().toLocaleString(),
+        accion: "ACTUALIZACION",
+        ubicacion: c.ubicacion,
+        nombre: nuevoNombre,
+        cantidad: 0,
+        responsable: getUser(),
+        comentarios: `Editado por administrador (${[renombrar ? `nombre "${nombreViejo}" → "${nuevoNombre}"` : "", pnCambio ? `PN → "${pnNuevo}"` : "", medidaCambio ? `medida → "${medidaNueva}"` : ""].filter(Boolean).join("; ")})`,
+        sinFila: true
+      });
+    }
 
     await loadCajas(true);
     if(typeof window.showStock === "function") window.showStock(true);
     if(typeof window.renderRacksPage === "function") window.renderRacksPage();
 
-    alert("Material actualizado");
+    alert(otrasActualizadas.length
+      ? `Material actualizado en esta caja y en ${otrasActualizadas.length} caja(s) más`
+      : "Material actualizado");
 
   }catch(e){
     console.error(e);
@@ -1141,7 +1408,9 @@ window.getMaterialesCatalogo = function(){
       const actual = vistos.get(key);
       const tienePn = comp.pn && comp.pn !== "NO APLICA";
       if(!actual || (tienePn && (!actual.pn || actual.pn === "NO APLICA"))){
-        vistos.set(key, { nombre: comp.nombre, pn: comp.pn || "NO APLICA" });
+        vistos.set(key, { nombre: comp.nombre, pn: comp.pn || "NO APLICA", medida: comp.medida || (actual && actual.medida) || "" });
+      } else if(!actual.medida && comp.medida){
+        actual.medida = comp.medida;
       }
     });
   });
@@ -1231,13 +1500,14 @@ Usan exactamente la misma lógica y el mismo historial
 que las páginas de Entrada y Salida.
 ===================================================== */
 
-window.entradaRapida = async function(ubicacion, nombre, pn, cantidad, comentarios, categoria){
+window.entradaRapida = async function(ubicacion, nombre, pn, cantidad, comentarios, categoria, medida){
 
   nombre = String(nombre || "").trim().toUpperCase();
   pn = String(pn || "").trim().toUpperCase();
   cantidad = parseInt(cantidad);
   comentarios = String(comentarios || "NO APLICA").toUpperCase();
   categoria = categoria || "";
+  medida = String(medida || "").trim().toUpperCase();
 
   if(!ubicacion || !nombre || isNaN(cantidad) || cantidad <= 0){
     alert("Datos inválidos");
@@ -1251,6 +1521,10 @@ window.entradaRapida = async function(ubicacion, nombre, pn, cantidad, comentari
     const catalogo = window.getMaterialesCatalogo();
     const match = catalogo.find(m => m.nombre.toLowerCase() === nombre.toLowerCase());
     pn = (match && match.pn && match.pn !== "NO APLICA") ? String(match.pn).toUpperCase() : "NO APLICA";
+  }
+  if(!medida){
+    const mm = window.getMaterialesCatalogo().find(m => String(m.nombre).toLowerCase() === nombre.toLowerCase());
+    medida = (mm && mm.medida) ? String(mm.medida).toUpperCase() : "";
   }
 
   try{
@@ -1273,13 +1547,14 @@ window.entradaRapida = async function(ubicacion, nombre, pn, cantidad, comentari
       componentes[idx].comentarios = comentarios;
       componentes[idx].responsable = getUser();
       if(categoria) componentes[idx].categoria = categoria;
+      if(medida) componentes[idx].medida = medida;
     } else {
-      componentes.push({ nombre, pn, cantidad, comentarios, responsable: getUser(), categoria });
+      componentes.push({ nombre, pn, cantidad, comentarios, responsable: getUser(), categoria, medida });
     }
 
     await updateDoc(cajaRef, { componentes });
 
-    await addDoc(collection(db,"historial"),{
+    await addHist({
       ts: Date.now(),
       sid: SESION_ID,
       fecha: new Date().toLocaleString(),
@@ -1343,7 +1618,7 @@ window.salidaRapida = async function(ubicacion, nombre, cantidad, comentarios){
 
     await updateDoc(cajaRef, { componentes });
 
-    await addDoc(collection(db,"historial"),{
+    await addHist({
       ts: Date.now(),
       sid: SESION_ID,
       fecha: new Date().toLocaleString(),
@@ -1905,6 +2180,7 @@ window.moverMaterialEntreCajas = async function(ubicacionOrigen, nombreMaterial,
     }
 
     const pnMaterial = compOrigen[idxOrigen].pn || "NO APLICA";
+    const medidaMaterial = compOrigen[idxOrigen].medida || "";
 
     compOrigen[idxOrigen].cantidad -= cantidad;
     if(compOrigen[idxOrigen].cantidad <= 0) compOrigen.splice(idxOrigen,1);
@@ -1918,14 +2194,14 @@ window.moverMaterialEntreCajas = async function(ubicacionOrigen, nombreMaterial,
     } else {
       compDestino.push({
         nombre: nombreMaterial, pn: pnMaterial, cantidad,
-        comentarios, responsable: getUser()
+        comentarios, responsable: getUser(), medida: medidaMaterial
       });
     }
 
     await updateDoc(origenRef, { componentes: compOrigen });
     await updateDoc(destinoRef, { componentes: compDestino });
 
-    await addDoc(collection(db,"historial"),{
+    await addHist({
       ts: Date.now(),
       sid: SESION_ID,
       fecha: new Date().toLocaleString(),
@@ -2087,7 +2363,7 @@ window.enviarATooCrib = async function(ubicacionOrigen, nombreMaterial, cantidad
       });
     }
 
-    await addDoc(collection(db,"historial"),{
+    await addHist({
       ts: Date.now(),
       sid: SESION_ID,
       fecha: new Date().toLocaleString(),
@@ -2201,7 +2477,7 @@ window.regresarDeToolCrib = async function(nombreMaterial, cantidad, destino){
       await updateDoc(cribRef, { cantidad: restante });
     }
 
-    await addDoc(collection(db,"historial"),{
+    await addHist({
       ts: Date.now(),
       sid: SESION_ID,
       fecha: new Date().toLocaleString(),
@@ -2349,7 +2625,7 @@ window.enviarAScrap = async function(origenTipo, origenId, nombreMaterial, canti
       });
     }
 
-    await addDoc(collection(db,"historial"),{
+    await addHist({
       ts: Date.now(),
       sid: SESION_ID,
       fecha: new Date().toLocaleString(),
@@ -2461,7 +2737,7 @@ window.moverCajaUbicacion = async function(ubicacionOrigen, rackDestino, nivelDe
 
     const totalPiezas = (dataOrigen.componentes || []).reduce((s,x)=> s + (Number(x.cantidad)||0), 0);
 
-    await addDoc(collection(db,"historial"),{
+    await addHist({
       ts: Date.now(),
       sid: SESION_ID,
       fecha: new Date().toLocaleString(),
@@ -2486,6 +2762,351 @@ window.moverCajaUbicacion = async function(ubicacionOrigen, rackDestino, nivelDe
   }
 
 };
+
+
+/* =====================================================
+   ETIQUETAS DE CAJA — control físico ↔ digital
+   -----------------------------------------------------
+   - Cada caja tiene una etiqueta (colección "etiquetas", un documento
+     por número de caja). Se crea sola para las cajas nuevas y para las
+     que ya estaban registradas.
+   - Cada entrada / salida / movimiento de material en una caja agrega un
+     renglón a la tabla de su etiqueta (fecha, material #, cantidad,
+     total restante, firma).
+   - Si a una caja se le mete un material que no está en su etiqueta física
+     (o cambia su nombre / PN / medida), la etiqueta queda "pendiente" y
+     parpadea hasta que alguien confirme que ya se cambió la física.
+   ===================================================== */
+
+let cacheEtiquetas = [];
+let etqListo = false;
+let etqSincronizando = false;
+
+const ETQ_NA = "N/A";
+
+function etqNorm(t){ return String(t ?? "").trim().replace(/\s+/g," ").toUpperCase(); }
+
+function etqVal(t){
+  const v = String(t ?? "").trim();
+  if(!v || /^(NO APLICA|N\/A|NA)$/i.test(v)) return ETQ_NA;
+  return v.toUpperCase();
+}
+
+/* número/etiqueta de la caja: "53", "A-01"… (único en todo el almacén) */
+function etqNumCaja(c){
+  return normCaja((c && c.caja) || String((c && c.ubicacion) || "").split("-").pop());
+}
+function etqId(caja){ return normCaja(caja) || "SIN-NUMERO"; }
+
+function etqMatsDeCaja(c){
+  return (c.componentes || [])
+    .filter(x => x && x.nombre)
+    .map(x => ({
+      nombre: etqNorm(x.nombre),
+      pn: etqVal(x.pn),
+      medida: etqVal(x.medida),
+      cant: Number(x.cantidad) || 0
+    }));
+}
+
+/* Lo que debe mostrar la etiqueta de una caja ahora mismo */
+function etqVista(c){
+
+  const id = etqId(etqNumCaja(c));
+  const d = cacheEtiquetas.find(e => e.idDoc === id);
+  const actuales = etqMatsDeCaja(c);
+  const impresos = (d && d.materiales) || [];
+
+  const lista = [];
+  const motivos = [];
+
+  impresos.forEach(m => {
+    const act = actuales.find(a => a.nombre === m.nombre);
+    lista.push({
+      nombre: m.nombre,
+      pn: etqVal(m.pn),
+      medida: etqVal(m.medida),
+      cant0: Number(m.cant0) || 0,
+      actual: act ? act.cant : 0
+    });
+  });
+
+  actuales.forEach(a => {
+    const ya = lista.find(m => m.nombre === a.nombre);
+    if(!ya){
+      lista.push({ nombre: a.nombre, pn: a.pn, medida: a.medida, cant0: a.cant, actual: a.cant, nuevo: true });
+      if(d) motivos.push(`Material nuevo en la caja: ${a.nombre}`);
+    } else if(d && (ya.pn !== a.pn || ya.medida !== a.medida)){
+      ya.pn = a.pn;
+      ya.medida = a.medida;
+      motivos.push(`Cambió el PN o la medida de: ${a.nombre}`);
+    }
+  });
+
+  if(d && d.reimprimir) motivos.push("Se corrigió el nombre de un material");
+
+  const filas = ((d && d.filas) || []).slice().sort((x, y) => (x.ts || 0) - (y.ts || 0));
+
+  return {
+    caja: id,
+    cajaTxt: String(c.caja || id),
+    ubicacion: c.ubicacion,
+    materiales: lista,
+    filas,
+    pendiente: motivos.length > 0,
+    motivos,
+    tieneDoc: !!d
+  };
+}
+
+function etqCompararCajas(a, b){
+  return String(a.cajaTxt).localeCompare(String(b.cajaTxt), undefined, { numeric: true });
+}
+
+window.getEtiquetas = function(){
+  return cacheCajas.map(etqVista).sort(etqCompararCajas);
+};
+
+window.prepararEtiquetas = async function(){
+  await loadCajas(false);
+  if(!etqListo){
+    try{
+      const s = await getDocs(collection(db,"etiquetas"));
+      cacheEtiquetas = s.docs.map(d => ({ idDoc: d.id, ...d.data() }));
+      etqListo = true;
+    }catch(e){
+      console.error("Etiquetas (lectura):", e);
+    }
+  }
+  etqSincronizar();
+};
+
+/* Crea la etiqueta de toda caja que todavía no tiene (incluye las ya registradas) */
+async function etqSincronizar(){
+
+  etqPintarAviso();
+
+  if(!etqListo || etqSincronizando || !cacheCajas.length) return;
+
+  const faltan = cacheCajas.filter(c => !cacheEtiquetas.some(e => e.idDoc === etqId(etqNumCaja(c))));
+  if(!faltan.length) return;
+
+  etqSincronizando = true;
+
+  try{
+    for(const c of faltan){
+      const id = etqId(etqNumCaja(c));
+      const ref = doc(db,"etiquetas",id);
+      const s = await getDoc(ref);
+      if(s.exists()) continue;
+      await setDoc(ref, {
+        caja: String(c.caja || id),
+        materiales: etqMatsDeCaja(c).map(m => ({ nombre: m.nombre, pn: m.pn, medida: m.medida, cant0: m.cant })),
+        filas: [],
+        filasAnt: [],
+        reimprimir: false,
+        creada: Date.now()
+      });
+    }
+  }catch(e){
+    console.error("Etiquetas (sincronizar):", e);
+  }
+
+  etqSincronizando = false;
+}
+
+/* Cada movimiento del historial pasa por aquí: se guarda y, si afecta una
+   caja, se agrega su renglón a la tabla de la etiqueta. */
+async function addHist(mov){
+  const ref = await addDoc(collection(db,"historial"), mov);
+  try{
+    await etqRegistrarMov(mov);
+  }catch(e){
+    console.error("Etiquetas (movimiento):", e);
+  }
+  return ref;
+}
+
+function etqFechaCorta(ts){
+  const d = new Date(ts || Date.now());
+  const p = n => String(n).padStart(2,"0");
+  return `${p(d.getDate())}/${p(d.getMonth()+1)}/${String(d.getFullYear()).slice(-2)}`;
+}
+
+async function etqRegistrarMov(mov){
+
+  if(!mov || mov.sinFila) return;
+
+  const A = String(mov.accion || "");
+  const nombre = etqNorm(mov.nombre);
+  const cant = Math.abs(Number(mov.cantidad) || 0);
+  if(!nombre) return;
+
+  let efectos = [];
+
+  if(A === "ENTRADA" || A === "REGRESO TOOL CRIB"){
+    efectos = [{ ubic: mov.ubicacion, signo: +1, cant }];
+  } else if(A === "SALIDA" || A === "ENVIO TOOL CRIB" || A === "ENVIO SCRAP" || A === "ELIMINACION MATERIAL"){
+    efectos = [{ ubic: mov.ubicacion, signo: -1, cant }];
+  } else if(A === "MOVIMIENTO MATERIAL"){
+    const partes = String(mov.ubicacion || "").split("→").map(x => x.trim());
+    if(partes.length === 2) efectos = [
+      { ubic: partes[0], signo: -1, cant },
+      { ubic: partes[1], signo: +1, cant }
+    ];
+  } else if(A === "ACTUALIZACION"){
+    const dl = Number(mov.delta) || 0;
+    if(dl !== 0) efectos = [{ ubic: mov.ubicacion, signo: dl > 0 ? +1 : -1, cant: Math.abs(dl) }];
+  }
+
+  for(const ef of efectos){
+
+    if(!ef.ubic || ef.cant <= 0) continue;
+
+    const cajaSnap = await getDoc(doc(db,"cajas", ef.ubic));
+    if(!cajaSnap.exists()) continue;           // p. ej. "Tool Crib" o caja ya liberada
+
+    const dc = cajaSnap.data();
+    const id = etqId(etqNumCaja(dc));
+    const comp = (dc.componentes || []).find(x => etqNorm(x.nombre) === nombre);
+    const total = comp ? (Number(comp.cantidad) || 0) : 0;
+
+    const ref = doc(db,"etiquetas", id);
+    const eSnap = await getDoc(ref);
+
+    if(!eSnap.exists()){
+      // etiqueta aún no creada: se arma con lo que había ANTES de este movimiento
+      const mats = etqMatsDeCaja(dc).map(m => ({ nombre: m.nombre, pn: m.pn, medida: m.medida, cant0: m.cant }));
+      const antes = total - ef.signo * ef.cant;
+      const m0 = mats.find(m => m.nombre === nombre);
+      if(m0) m0.cant0 = Math.max(0, antes);
+      else if(antes > 0) mats.push({ nombre, pn: ETQ_NA, medida: ETQ_NA, cant0: antes });
+      await setDoc(ref, { caja: String(dc.caja || id), materiales: mats, filas: [], filasAnt: [], reimprimir: false, creada: Date.now() });
+    }
+
+    const fila = {
+      id: Math.random().toString(36).slice(2, 8),
+      ts: mov.ts || Date.now(),
+      fecha: etqFechaCorta(mov.ts),
+      nom: nombre,
+      tipo: ef.signo > 0 ? "+" : "-",
+      cant: ef.cant,
+      total,
+      firma: trNombreBonito(mov.responsable || getUser())
+    };
+
+    await updateDoc(ref, { filas: arrayUnion(fila) });
+  }
+}
+
+/* El material se renombró: la etiqueta física quedó desactualizada */
+async function etqRenombrar(cajaNum, viejo, nuevo){
+
+  try{
+
+    const ref = doc(db,"etiquetas", etqId(cajaNum));
+    const s = await getDoc(ref);
+    if(!s.exists()) return;
+
+    const d = s.data();
+    const vk = etqNorm(viejo), nk = etqNorm(nuevo);
+
+    const mats = (d.materiales || []).map(m => ({ ...m }));
+    const iv = mats.findIndex(m => m.nombre === vk);
+
+    if(iv >= 0){
+      const inn = mats.findIndex((m, j) => j !== iv && m.nombre === nk);
+      if(inn >= 0){
+        mats[inn].cant0 = (Number(mats[inn].cant0) || 0) + (Number(mats[iv].cant0) || 0);
+        mats.splice(iv, 1);
+      } else {
+        mats[iv].nombre = nk;
+      }
+    }
+
+    const filas = (d.filas || []).map(f => f.nom === vk ? { ...f, nom: nk } : f);
+
+    await updateDoc(ref, { materiales: mats, filas, reimprimir: true });
+
+  }catch(e){
+    console.error("Etiquetas (renombrar):", e);
+  }
+}
+
+/* Confirmar que la etiqueta FÍSICA ya se reemplazó por la nueva:
+   la etiqueta nueva queda como base y su tabla empieza vacía. */
+window.confirmarEtiquetaFisica = async function(cajaId){
+
+  try{
+
+    const c = cacheCajas.find(x => etqId(etqNumCaja(x)) === cajaId);
+    if(!c){ alert("La caja ya no existe"); return false; }
+
+    const v = etqVista(c);
+    const actuales = etqMatsDeCaja(c);
+
+    const orden = v.materiales.filter(m => actuales.some(a => a.nombre === m.nombre)).map(m => m.nombre);
+    actuales.forEach(a => { if(!orden.includes(a.nombre)) orden.push(a.nombre); });
+
+    const materiales = orden.map(n => {
+      const a = actuales.find(x => x.nombre === n);
+      return { nombre: n, pn: a.pn, medida: a.medida, cant0: a.cant };
+    });
+
+    const ref = doc(db,"etiquetas", cajaId);
+    const prev = await getDoc(ref);
+    const pd = prev.exists() ? prev.data() : {};
+
+    await setDoc(ref, {
+      caja: String(c.caja || cajaId),
+      materiales,
+      filas: [],
+      filasAnt: (pd.filasAnt || []).concat(pd.filas || []).slice(-200),
+      reimprimir: false,
+      confirmada: Date.now(),
+      confirmadaPor: getUser()
+    }, { merge: true });
+
+    return true;
+
+  }catch(e){
+    console.error(e);
+    alert("No se pudo confirmar el cambio de etiqueta");
+    return false;
+  }
+};
+
+/* Parpadeo en el menú lateral cuando hay etiquetas por cambiar */
+function etqPintarAviso(){
+
+  if(!document.getElementById("etqEstilos")){
+    const st = document.createElement("style");
+    st.id = "etqEstilos";
+    st.textContent = `
+@keyframes etqBlink{ 0%,100%{ background:rgba(255,90,31,0); } 50%{ background:rgba(255,90,31,.6); } }
+.sidebar a.etq-parpadeo{ animation:etqBlink 1s ease-in-out infinite; }
+.etq-badge{ margin-left:auto; background:#ff5a1f; color:#fff; border-radius:99px; font-size:11px; font-weight:700; padding:2px 8px; line-height:1.4; }
+`;
+    document.head.appendChild(st);
+  }
+
+  const n = cacheCajas.filter(c => etqVista(c).pendiente).length;
+  window.etqPendientes = n;
+
+  document.querySelectorAll('.sidebar a[href="etiquetas.html"]').forEach(a => {
+    a.classList.toggle("etq-parpadeo", n > 0);
+    let b = a.querySelector(".etq-badge");
+    if(n > 0){
+      if(!b){ b = document.createElement("span"); b.className = "etq-badge"; a.appendChild(b); }
+      b.textContent = n;
+      b.title = n + " etiqueta(s) por cambiar físicamente";
+    } else if(b){
+      b.remove();
+    }
+  });
+}
+
+document.addEventListener("DOMContentLoaded", () => setTimeout(etqPintarAviso, 600));
 
 
 /* =====================================================
@@ -2651,6 +3272,11 @@ async function trRefrescarVistas(){
       await window.filtrarCategorias();
     }
 
+    // Etiquetas
+    if(typeof window.renderEtiquetas === "function" && document.getElementById("etqGrid")){
+      window.renderEtiquetas();
+    }
+
     // Racks y visor 3D
     trRefrescarRacks();
 
@@ -2696,6 +3322,14 @@ function trIniciar(){
 
   trEscuchar("cajas", snap => {
     cacheCajas = snap.docs.map(d => ({ idDoc:d.id, ...d.data() }));
+    etqSincronizar();
+  });
+
+  trEscuchar("etiquetas", snap => {
+    cacheEtiquetas = snap.docs.map(d => ({ idDoc:d.id, ...d.data() }));
+    etqListo = true;
+    etqSincronizar();
+    if(typeof window.renderEtiquetas === "function") window.renderEtiquetas();
   });
 
   trEscuchar("racks", snap => {
